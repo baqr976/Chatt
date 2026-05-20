@@ -1,4 +1,4 @@
--- 💬 Supabase Mini Chat (Arabic + Emoji Support)
+-- 💬 Supabase Mini Chat v2 (Final)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -10,7 +10,14 @@ local LocalPlayer = Players.LocalPlayer
 local PROJECT_URL = "https://fzkxotptuhmhkuhnsoav.supabase.co"
 local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a3hvdHB0dWhtaGt1aG5zb2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ1OTYsImV4cCI6MjA5NDgzMDU5Nn0.etgvcKzEo89I_nvhB_EyLUbVgbV-gHgBJbW_NjNM7wo"
 
--- 🧹 احذف القديم لو موجود
+-- 🌐 تحديد دالة الطلبات حسب الـ Executor
+local request = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
+if not request then
+    warn("❌ الـ Executor لا يدعم HTTP Requests")
+    return
+end
+
+-- 🧹 احذف القديم
 if CoreGui:FindFirstChild("MiniChat") then
     CoreGui.MiniChat:Destroy()
 end
@@ -19,6 +26,7 @@ end
 local gui = Instance.new("ScreenGui")
 gui.Name = "MiniChat"
 gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
 gui.Parent = CoreGui
 
 -- 🔘 زر الفتح/الإغلاق
@@ -33,6 +41,8 @@ toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.BorderSizePixel = 0
 toggleBtn.AutoButtonColor = false
+toggleBtn.Active = true
+toggleBtn.Draggable = true
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1, 0)
 local btnStroke = Instance.new("UIStroke", toggleBtn)
 btnStroke.Color = Color3.fromRGB(150, 150, 255)
@@ -138,7 +148,7 @@ local function getColor(name)
     return userColors[name]
 end
 
--- ➕ إضافة رسالة
+-- ➕ إضافة رسالة للواجهة
 local function addMessage(user, msg)
     local isMe = user == LocalPlayer.Name
     
@@ -178,7 +188,6 @@ local function addMessage(user, msg)
     msgLbl.TextXAlignment = Enum.TextXAlignment.Right
     msgLbl.RichText = true
     
-    -- تأثير ظهور
     container.BackgroundTransparency = 1
     nameLbl.TextTransparency = 1
     msgLbl.TextTransparency = 1
@@ -199,11 +208,9 @@ local function sendMessage(text)
         message = text
     }
     
-    local req = (syn and syn.request) or (http and http.request) or http_request or request
-    
     task.spawn(function()
-        pcall(function()
-            req({
+        local ok, err = pcall(function()
+            local res = request({
                 Url = PROJECT_URL .. "/rest/v1/chat_messages",
                 Method = "POST",
                 Headers = {
@@ -214,7 +221,11 @@ local function sendMessage(text)
                 },
                 Body = HttpService:JSONEncode(data)
             })
+            print("📤 SEND:", res.StatusCode)
         end)
+        if not ok then
+            warn("❌ خطأ بالإرسال:", err)
+        end
     end)
 end
 
@@ -226,13 +237,11 @@ box.FocusLost:Connect(function(enter)
 end)
 
 -- 🔄 جلب الرسائل
-local lastData = ""
+local lastIds = {}
 task.spawn(function()
-    local req = (syn and syn.request) or (http and http.request) or http_request or request
-    
     while task.wait(2) do
-        pcall(function()
-            local response = req({
+        local ok, err = pcall(function()
+            local response = request({
                 Url = PROJECT_URL .. "/rest/v1/chat_messages?select=*&order=created_at.asc&limit=30",
                 Method = "GET",
                 Headers = {
@@ -241,19 +250,21 @@ task.spawn(function()
                 }
             })
             
-            if response and response.Body and response.Body ~= lastData then
-                lastData = response.Body
-                
-                messages:ClearAllChildren()
-                layout.Parent = messages
-                pad.Parent = messages
-                
+            if response and response.Body then
                 local decoded = HttpService:JSONDecode(response.Body)
-                for _, v in ipairs(decoded) do
-                    addMessage(v.username, v.message)
+                if type(decoded) == "table" then
+                    for _, v in ipairs(decoded) do
+                        if v.id and not lastIds[v.id] then
+                            lastIds[v.id] = true
+                            addMessage(v.username, v.message)
+                        end
+                    end
                 end
             end
         end)
+        if not ok then
+            warn("❌ خطأ بالجلب:", err)
+        end
     end
 end)
 
@@ -265,16 +276,13 @@ local function toggle()
     if isOpen then
         frame.Visible = true
         frame.Size = UDim2.new(0, 0, 0, 0)
-        frame.Position = UDim2.new(0, 70, 0.5, 0)
         TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 250, 0, 280),
-            Position = UDim2.new(0, 70, 0.5, -140)
+            Size = UDim2.new(0, 250, 0, 280)
         }):Play()
         toggleBtn.Text = "✕"
     else
         TweenService:Create(frame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
-            Size = UDim2.new(0, 0, 0, 0),
-            Position = UDim2.new(0, 70, 0.5, 0)
+            Size = UDim2.new(0, 0, 0, 0)
         }):Play()
         toggleBtn.Text = "💬"
         task.wait(0.25)
