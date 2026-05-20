@@ -8,7 +8,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
 local PROJECT_URL = "https://fzkxotptuhmhkuhnsoav.supabase.co"
-local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a3hvdHB0dWhtaGt1aG5zb2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ1OTYsImV4cCI6MjA5NDgzMDU5Nn0.etgvcKzEo89I_nvhB_EyLUbVgbV-gHgBJbW_NjNM7wo"
+local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a3hvdHB0dWhtaGt1aG5zb2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ1OTYsImV4cCI6MjA5NDgzMDU5Nn0.etgvcKzEo89I_nvhB[...]
 
 local request = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
 if not request then warn("❌ Executor لا يدعم HTTP") return end
@@ -36,9 +36,9 @@ toggleBtn.AutoButtonColor = false
 toggleBtn.ZIndex = 10
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
--- الإطار الرئيسي - أسود شفاف مثل روبلوكس
+-- الإطار الرئيسي - 25% من الشاشة
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 300, 0, 200)
+frame.Size = UDim2.new(0.25, 0, 0.25, 0)
 frame.Position = UDim2.new(0, 5, 0, 45)
 frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 frame.BackgroundTransparency = 0.5
@@ -114,7 +114,7 @@ local function colorToHex(c)
         math.floor(c.B * 255))
 end
 
--- إضافة رسالة - نفس اسلوب روبلوكس (الاسم: الرسالة في سطر واحد)
+-- إضافة رسالة - الاسم والرسالة على سطرين منفصلين
 local function addMessage(user, msg)
     local color = getColor(user)
     local hex = colorToHex(color)
@@ -124,7 +124,7 @@ local function addMessage(user, msg)
     label.Size = UDim2.new(1, 0, 0, 0)
     label.AutomaticSize = Enum.AutomaticSize.Y
     label.BackgroundTransparency = 1
-    label.Text = string.format('<font color="%s"><b>%s</b></font>: %s', hex, displayName, msg)
+    label.Text = string.format('<font color="%s"><b>%s</b></font>\n%s', hex, displayName, msg)
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
     label.Font = Enum.Font.GothamMedium
     label.TextSize = 13
@@ -360,7 +360,7 @@ toggleBtn.MouseButton1Click:Connect(function()
     if isOpen then
         frame.Visible = true
         frame.Size = UDim2.new(0, 0, 0, 0)
-        TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Size = UDim2.new(0, 300, 0, 200)}):Play()
+        TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Size = UDim2.new(0.25, 0, 0.25, 0)}):Play()
         toggleBtn.Text = "✕"
     else
         TweenService:Create(frame, TweenInfo.new(0.15), {Size = UDim2.new(0, 0, 0, 0)}):Play()
