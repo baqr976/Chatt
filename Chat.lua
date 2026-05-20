@@ -194,7 +194,7 @@ local function getBillboard(character)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ProChatBillboard"
     billboard.Size = UDim2.new(0, 220, 0, 180)
-    billboard.StudsOffset = Vector3.new(0, 0.5, 0) -- ✅ رفع الفقاعة للفوق
+    billboard.StudsOffset = Vector3.new(0, 0.2, 0) -- ✅ رفع الفقاعة للفوق
     billboard.AlwaysOnTop = true
     billboard.LightInfluence = 0
     billboard.MaxDistance = 200
