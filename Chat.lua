@@ -35,7 +35,7 @@ toggleBtn.AutoButtonColor = false
 toggleBtn.ZIndex = 10
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
-local CHAT_SIZE = UDim2.new(0.35, 0, 0.25, 0)
+local CHAT_SIZE = UDim2.new(0.35, 0, 0.27, 0)
 
 local frame = Instance.new("Frame", gui)
 frame.Size = CHAT_SIZE
@@ -127,7 +127,7 @@ local function addMessage(user, msg)
     label.TextSize = 12
     label.TextWrapped = true
     label.TextXAlignment = Enum.TextXAlignment.Right
-    local displayName = user == LocalPlayer.Name and ("(" .. user .. ")") or user
+    local displayName = user == LocalPlayer.Name and ("  (" .. user .. ")") or user
 
 label.Text = string.format('%s  <font color="%s"><b>%s</b></font>', msg, hex, displayName)
 
@@ -363,7 +363,7 @@ toggleBtn.MouseButton1Click:Connect(function()
     else
         TweenService:Create(frame, TweenInfo.new(0.15), {Size = UDim2.new(0, 0, 0, 0)}):Play()
         toggleBtn.Text = "💬"
-        task.wait(0.15)
+        task.wait(0.05)
         frame.Visible = false
     end
 end)
