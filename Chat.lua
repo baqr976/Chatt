@@ -1,4 +1,4 @@
--- 💬 Supabase Mini Chat v2 (Final)
+-- 💬 Supabase Mini Chat v3 (Fast + Auto Clean)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -10,7 +10,7 @@ local LocalPlayer = Players.LocalPlayer
 local PROJECT_URL = "https://fzkxotptuhmhkuhnsoav.supabase.co"
 local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a3hvdHB0dWhtaGt1aG5zb2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ1OTYsImV4cCI6MjA5NDgzMDU5Nn0.etgvcKzEo89I_nvhB_EyLUbVgbV-gHgBJbW_NjNM7wo"
 
--- 🌐 تحديد دالة الطلبات حسب الـ Executor
+-- 🌐 دالة الطلبات
 local request = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
 if not request then
     warn("❌ الـ Executor لا يدعم HTTP Requests")
@@ -29,7 +29,7 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Parent = CoreGui
 
--- 🔘 زر الفتح/الإغلاق
+-- 🔘 زر الفتح/الإغلاق (قابل للسحب)
 local toggleBtn = Instance.new("TextButton", gui)
 toggleBtn.Size = UDim2.new(0, 45, 0, 45)
 toggleBtn.Position = UDim2.new(0, 15, 0.5, -22)
@@ -130,7 +130,7 @@ box.TextSize = 12
 box.TextXAlignment = Enum.TextXAlignment.Right
 box.ClearTextOnFocus = false
 
--- 🎨 ألوان عشوائية لكل لاعب
+-- 🎨 ألوان لكل لاعب
 local userColors = {}
 local palette = {
     Color3.fromRGB(255, 120, 120),
@@ -148,7 +148,7 @@ local function getColor(name)
     return userColors[name]
 end
 
--- ➕ إضافة رسالة للواجهة
+-- ➕ إضافة رسالة
 local function addMessage(user, msg)
     local isMe = user == LocalPlayer.Name
     
@@ -191,15 +191,15 @@ local function addMessage(user, msg)
     container.BackgroundTransparency = 1
     nameLbl.TextTransparency = 1
     msgLbl.TextTransparency = 1
-    TweenService:Create(container, TweenInfo.new(0.3), {BackgroundTransparency = 0.3}):Play()
-    TweenService:Create(nameLbl, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    TweenService:Create(msgLbl, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+    TweenService:Create(container, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
+    TweenService:Create(nameLbl, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
+    TweenService:Create(msgLbl, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
     
-    task.wait(0.05)
+    task.wait(0.03)
     messages.CanvasPosition = Vector2.new(0, messages.AbsoluteCanvasSize.Y)
 end
 
--- 📤 إرسال رسالة
+-- 📤 إرسال
 local function sendMessage(text)
     if text == "" then return end
     
@@ -209,8 +209,8 @@ local function sendMessage(text)
     }
     
     task.spawn(function()
-        local ok, err = pcall(function()
-            local res = request({
+        pcall(function()
+            request({
                 Url = PROJECT_URL .. "/rest/v1/chat_messages",
                 Method = "POST",
                 Headers = {
@@ -221,11 +221,7 @@ local function sendMessage(text)
                 },
                 Body = HttpService:JSONEncode(data)
             })
-            print("📤 SEND:", res.StatusCode)
         end)
-        if not ok then
-            warn("❌ خطأ بالإرسال:", err)
-        end
     end)
 end
 
@@ -236,13 +232,13 @@ box.FocusLost:Connect(function(enter)
     end
 end)
 
--- 🔄 جلب الرسائل
-local lastIds = {}
+-- 🔄 جلب الرسائل (سريع)
+local shownIds = {}
 task.spawn(function()
-    while task.wait(2) do
-        local ok, err = pcall(function()
+    while task.wait(0.6) do
+        pcall(function()
             local response = request({
-                Url = PROJECT_URL .. "/rest/v1/chat_messages?select=*&order=created_at.asc&limit=30",
+                Url = PROJECT_URL .. "/rest/v1/chat_messages?select=*&order=id.asc&limit=10",
                 Method = "GET",
                 Headers = {
                     ["apikey"] = ANON_KEY,
@@ -254,17 +250,14 @@ task.spawn(function()
                 local decoded = HttpService:JSONDecode(response.Body)
                 if type(decoded) == "table" then
                     for _, v in ipairs(decoded) do
-                        if v.id and not lastIds[v.id] then
-                            lastIds[v.id] = true
+                        if v.id and not shownIds[v.id] then
+                            shownIds[v.id] = true
                             addMessage(v.username, v.message)
                         end
                     end
                 end
             end
         end)
-        if not ok then
-            warn("❌ خطأ بالجلب:", err)
-        end
     end
 end)
 
@@ -276,16 +269,16 @@ local function toggle()
     if isOpen then
         frame.Visible = true
         frame.Size = UDim2.new(0, 0, 0, 0)
-        TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        TweenService:Create(frame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
             Size = UDim2.new(0, 250, 0, 280)
         }):Play()
         toggleBtn.Text = "✕"
     else
-        TweenService:Create(frame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
+        TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
             Size = UDim2.new(0, 0, 0, 0)
         }):Play()
         toggleBtn.Text = "💬"
-        task.wait(0.25)
+        task.wait(0.2)
         frame.Visible = false
     end
 end
@@ -293,4 +286,4 @@ end
 toggleBtn.MouseButton1Click:Connect(toggle)
 closeBtn.MouseButton1Click:Connect(toggle)
 
-print("✅ Mini Chat Loaded — اضغط على زر 💬")
+print("✅ Mini Chat v3 جاهز — سرعة قصوى ⚡")
