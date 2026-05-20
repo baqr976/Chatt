@@ -8,7 +8,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
 local PROJECT_URL = "https://fzkxotptuhmhkuhnsoav.supabase.co"
-local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a3hvdHB0dWhtaGt1aG5zb2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ1OTYsImV4cCI6MjA5NDgzMDU5Nn0.etgvcKzEo89I_nvhB[...]
+local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a3hvdHB0dWhtaGt1aG5zb2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ1OTYsImV4cCI6MjA5NDgzMDU5Nn0.etgvcKzEo89I_nvhB_EyLUbVgbV-gHgBJbW_NjNM7wo"
 
 local request = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
 if not request then warn("❌ Executor لا يدعم HTTP") return end
@@ -23,12 +23,12 @@ gui.Parent = CoreGui
 
 -- زر التبديل
 local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0, 32, 0, 32)
+toggleBtn.Size = UDim2.new(0, 28, 0, 28)
 toggleBtn.Position = UDim2.new(0, 180, 0, 5)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 toggleBtn.BackgroundTransparency = 0.5
 toggleBtn.Text = "💬"
-toggleBtn.TextSize = 16
+toggleBtn.TextSize = 14
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.BorderSizePixel = 0
@@ -36,10 +36,12 @@ toggleBtn.AutoButtonColor = false
 toggleBtn.ZIndex = 10
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
--- الإطار الرئيسي - 25% من الشاشة
+-- ✅ الإطار الرئيسي - 25% من الشاشة
+local CHAT_SIZE = UDim2.new(0.25, 0, 0.25, 0)
+
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0.25, 0, 0.25, 0)
-frame.Position = UDim2.new(0, 5, 0, 45)
+frame.Size = CHAT_SIZE
+frame.Position = UDim2.new(0, 5, 0, 38)
 frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 frame.BackgroundTransparency = 0.5
 frame.BorderSizePixel = 0
@@ -58,7 +60,7 @@ messages.BorderSizePixel = 0
 messages.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
 local layout = Instance.new("UIListLayout", messages)
-layout.Padding = UDim.new(0, 1)
+layout.Padding = UDim.new(0, 2)
 
 local pad = Instance.new("UIPadding", messages)
 pad.PaddingTop = UDim.new(0, 2)
@@ -68,8 +70,8 @@ pad.PaddingRight = UDim.new(0, 4)
 
 -- صندوق الكتابة
 local inputBg = Instance.new("Frame", frame)
-inputBg.Size = UDim2.new(1, -8, 0, 28)
-inputBg.Position = UDim2.new(0, 4, 1, -32)
+inputBg.Size = UDim2.new(1, -8, 0, 26)
+inputBg.Position = UDim2.new(0, 4, 1, -30)
 inputBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 inputBg.BackgroundTransparency = 0.4
 inputBg.BorderSizePixel = 0
@@ -84,7 +86,7 @@ box.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
 box.Text = ""
 box.TextColor3 = Color3.new(1, 1, 1)
 box.Font = Enum.Font.GothamMedium
-box.TextSize = 13
+box.TextSize = 12
 box.TextXAlignment = Enum.TextXAlignment.Right
 box.ClearTextOnFocus = false
 
@@ -114,26 +116,55 @@ local function colorToHex(c)
         math.floor(c.B * 255))
 end
 
--- إضافة رسالة - الاسم والرسالة على سطرين منفصلين
+-- ✅ إضافة رسالة - الاسم في سطر والرسالة في سطر تحته
 local function addMessage(user, msg)
     local color = getColor(user)
     local hex = colorToHex(color)
     local displayName = user == LocalPlayer.Name and (user .. " ✨") or user
 
-    local label = Instance.new("TextLabel", messages)
-    label.Size = UDim2.new(1, 0, 0, 0)
-    label.AutomaticSize = Enum.AutomaticSize.Y
-    label.BackgroundTransparency = 1
-    label.Text = string.format('<font color="%s"><b>%s</b></font>\n%s', hex, displayName, msg)
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.Font = Enum.Font.GothamMedium
-    label.TextSize = 13
-    label.TextWrapped = true
-    label.TextXAlignment = Enum.TextXAlignment.Right
-    label.RichText = true
+    -- ✅ Container يحتوي الاسم + الرسالة منفصلين
+    local container = Instance.new("Frame", messages)
+    container.Size = UDim2.new(1, 0, 0, 0)
+    container.AutomaticSize = Enum.AutomaticSize.Y
+    container.BackgroundTransparency = 1
 
-    label.TextTransparency = 1
-    TweenService:Create(label, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
+    local cLayout = Instance.new("UIListLayout", container)
+    cLayout.Padding = UDim.new(0, 0)
+    cLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    -- سطر الاسم
+    local nameLabel = Instance.new("TextLabel", container)
+    nameLabel.LayoutOrder = 1
+    nameLabel.Size = UDim2.new(1, 0, 0, 0)
+    nameLabel.AutomaticSize = Enum.AutomaticSize.Y
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = string.format('<font color="%s"><b>%s</b></font>', hex, displayName)
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextSize = 12
+    nameLabel.TextWrapped = true
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Right
+    nameLabel.RichText = true
+
+    -- سطر الرسالة
+    local msgLabel = Instance.new("TextLabel", container)
+    msgLabel.LayoutOrder = 2
+    msgLabel.Size = UDim2.new(1, 0, 0, 0)
+    msgLabel.AutomaticSize = Enum.AutomaticSize.Y
+    msgLabel.BackgroundTransparency = 1
+    msgLabel.Text = msg
+    msgLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    msgLabel.Font = Enum.Font.GothamMedium
+    msgLabel.TextSize = 12
+    msgLabel.TextWrapped = true
+    msgLabel.TextXAlignment = Enum.TextXAlignment.Right
+    msgLabel.RichText = false
+
+    -- fade in
+    nameLabel.TextTransparency = 1
+    msgLabel.TextTransparency = 1
+    TweenService:Create(nameLabel, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
+    TweenService:Create(msgLabel, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
 
     task.wait(0.01)
     messages.CanvasPosition = Vector2.new(0, messages.AbsoluteCanvasSize.Y)
@@ -165,14 +196,14 @@ local function getBillboard(character)
     if not attachment then
         attachment = Instance.new("Attachment")
         attachment.Name = "ProChatAttachment"
-        attachment.Position = Vector3.new(0, head.Size.Y / 2, 0) -- ✅ أعلى الرأس بالضبط
+        attachment.Position = Vector3.new(0, head.Size.Y / 2, 0)
         attachment.Parent = head
     end
 
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ProChatBillboard"
     billboard.Size = UDim2.new(0, 200, 0, 150)
-    billboard.SizeOffset = Vector2.new(0, 0.5) -- ✅ يرفع البيلبورد لفوق بحيث أسفله عند الرأس
+    billboard.SizeOffset = Vector2.new(0, 0.5)
     billboard.StudsOffset = Vector3.new(0, 0, 0)
     billboard.AlwaysOnTop = true
     billboard.LightInfluence = 0
@@ -189,7 +220,7 @@ local function getBillboard(character)
     local list = Instance.new("UIListLayout", container)
     list.Padding = UDim.new(0, 4)
     list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    list.VerticalAlignment = Enum.VerticalAlignment.Bottom -- ✅ الفقاعات تبدأ من تحت وتطلع لفوق
+    list.VerticalAlignment = Enum.VerticalAlignment.Bottom
     list.SortOrder = Enum.SortOrder.LayoutOrder
 
     return billboard
@@ -360,7 +391,8 @@ toggleBtn.MouseButton1Click:Connect(function()
     if isOpen then
         frame.Visible = true
         frame.Size = UDim2.new(0, 0, 0, 0)
-        TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Size = UDim2.new(0.25, 0, 0.25, 0)}):Play()
+        -- ✅ الحجم الصح عند الفتح
+        TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Size = CHAT_SIZE}):Play()
         toggleBtn.Text = "✕"
     else
         TweenService:Create(frame, TweenInfo.new(0.15), {Size = UDim2.new(0, 0, 0, 0)}):Play()
