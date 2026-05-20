@@ -1,4 +1,4 @@
--- 💬 Supabase Pro Chat v5 (Mobile-Sized + Smart Bubbles)
+-- 💬 Supabase Pro Chat v6 (Fixed Position + Above Head)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -17,19 +17,19 @@ if not request then warn("❌ Executor لا يدعم HTTP") return end
 if CoreGui:FindFirstChild("ProChat") then CoreGui.ProChat:Destroy() end
 
 -- ====================================================
--- 🎨 GUI الشات (حجم جوال صغير ~25% من الشاشة)
+-- 🎨 GUI الشات
 -- ====================================================
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "ProChat"
 gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = false
+gui.IgnoreGuiInset = true  -- ⬅️ تجاهل الـ TopBar عشان نتحكم بدقة
 gui.Parent = CoreGui
 
--- 🔘 زر صغير
+-- 🔘 زر صغير (تحت علامة Roblox)
 local toggleBtn = Instance.new("TextButton", gui)
 toggleBtn.Size = UDim2.new(0, 28, 0, 28)
-toggleBtn.Position = UDim2.new(0, 6, 0, 6)
+toggleBtn.Position = UDim2.new(0, 6, 0, 45)  -- ⬆️ تحت علامة Roblox مباشرة
 toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 90)
 toggleBtn.BackgroundTransparency = 0.3
 toggleBtn.Text = "💬"
@@ -44,10 +44,10 @@ local btnStroke = Instance.new("UIStroke", toggleBtn)
 btnStroke.Color = Color3.fromRGB(120, 120, 220)
 btnStroke.Transparency = 0.5
 
--- 🪟 إطار الشات (صغير شبه شات الجوال)
+-- 🪟 إطار الشات (مرفوع تحت علامة Roblox)
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0.25, 0, 0.28, 0) -- 25% عرض × 28% ارتفاع
-frame.Position = UDim2.new(0, 6, 0, 40)
+frame.Size = UDim2.new(0.25, 0, 0.28, 0)
+frame.Position = UDim2.new(0, 6, 0, 80)  -- ⬆️ مرفوع لفوق
 frame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 frame.BackgroundTransparency = 0.4
 frame.BorderSizePixel = 0
@@ -62,7 +62,7 @@ local frameStroke = Instance.new("UIStroke", frame)
 frameStroke.Color = Color3.fromRGB(100, 100, 200)
 frameStroke.Transparency = 0.6
 
--- 💬 منطقة الرسائل
+-- 💬 الرسائل
 local messages = Instance.new("ScrollingFrame", frame)
 messages.Size = UDim2.new(1, -6, 1, -36)
 messages.Position = UDim2.new(0, 3, 0, 3)
@@ -122,7 +122,7 @@ local function getColor(name)
     return userColors[name]
 end
 
--- ➕ إضافة رسالة للشات
+-- ➕ إضافة رسالة
 local function addMessage(user, msg)
     local isMe = user == LocalPlayer.Name
     
@@ -174,12 +174,22 @@ local function addMessage(user, msg)
 end
 
 -- ====================================================
--- 🎈 Chat Bubbles فوق الراس (ذكية وثابتة)
+-- 🎈 Chat Bubbles فوق الراس (بدقة)
 -- ====================================================
 
 local playerBubbles = {}
 
--- إنشاء Billboard مرة وحدة فقط
+-- 🔍 احصل على ارتفاع الراس الحقيقي
+local function getHeadOffset(character)
+    local head = character:FindFirstChild("Head")
+    if not head then return 3 end
+    
+    -- نحسب ارتفاع البلبورد فوق الراس
+    -- نصف ارتفاع الراس + مساحة إضافية
+    local headSize = head.Size.Y / 2
+    return headSize + 1.5  -- 1.5 ستد إضافية فوق الراس
+end
+
 local function getBillboard(character)
     local head = character:FindFirstChild("Head")
     if not head then return nil end
@@ -190,13 +200,13 @@ local function getBillboard(character)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ProChatBillboard"
     billboard.Size = UDim2.new(0, 220, 0, 180)
-    billboard.StudsOffset = Vector3.new(0, 2.5, 0) -- فوق الراس
+    -- ✅ يتثبت فوق الراس بناءً على حجمه الحقيقي
+    billboard.StudsOffsetWorldSpace = Vector3.new(0, getHeadOffset(character), 0)
     billboard.AlwaysOnTop = true
     billboard.LightInfluence = 0
     billboard.MaxDistance = 150
     billboard.ResetOnSpawn = false
-    -- 🔑 حجم ثابت مهما تغير الزوم
-    billboard.SizeOffset = Vector2.new(0, 0)
+    billboard.Adornee = head
     billboard.Parent = head
     
     local container = Instance.new("Frame", billboard)
@@ -213,7 +223,6 @@ local function getBillboard(character)
     return billboard
 end
 
--- إنشاء فقاعة
 local function createBubble(container, message)
     local bubble = Instance.new("Frame", container)
     bubble.AutomaticSize = Enum.AutomaticSize.XY
@@ -249,7 +258,6 @@ local function createBubble(container, message)
     local sc = Instance.new("UISizeConstraint", txt)
     sc.MaxSize = Vector2.new(180, math.huge)
     
-    -- أنميشن دخول حلو
     bubble.BackgroundTransparency = 1
     txt.TextTransparency = 1
     stroke.Transparency = 1
@@ -263,7 +271,6 @@ local function createBubble(container, message)
     return bubble, txt, stroke
 end
 
--- إخفاء فقاعة
 local function removeBubble(data)
     if not data or not data.bubble or not data.bubble.Parent then return end
     
@@ -280,7 +287,6 @@ local function removeBubble(data)
     end)
 end
 
--- إظهار فقاعة فوق راس لاعب
 local function showBubbleAbovePlayer(playerName, message)
     local player = Players:FindFirstChild(playerName)
     if not player or not player.Character then return end
@@ -297,18 +303,15 @@ local function showBubbleAbovePlayer(playerName, message)
     
     local bubbleList = playerBubbles[playerName]
     
-    -- إذا فيه 3 فقاعات، احذف الأقدم
     if #bubbleList >= 3 then
         local oldest = table.remove(bubbleList, 1)
         removeBubble(oldest)
     end
     
-    -- أنشئ جديدة
     local bubble, txt, stroke = createBubble(container, message)
     local data = {bubble = bubble, txt = txt, stroke = stroke}
     table.insert(bubbleList, data)
     
-    -- مؤقت 5 ثواني
     task.delay(5, function()
         for i, v in ipairs(bubbleList) do
             if v == data then
@@ -320,34 +323,31 @@ local function showBubbleAbovePlayer(playerName, message)
     end)
 end
 
--- 🔄 لما تتغير شخصية لاعب، نعيد إنشاء البلبورد
-Players.PlayerAdded:Connect(function(plr)
-    plr.CharacterAdded:Connect(function(char)
-        playerBubbles[plr.Name] = {}
-        task.wait(1)
-        getBillboard(char)
-    end)
-end)
-
-for _, plr in ipairs(Players:GetPlayers()) do
+-- 🔄 إعداد اللاعبين
+local function setupPlayer(plr)
     if plr.Character then
         getBillboard(plr.Character)
     end
     plr.CharacterAdded:Connect(function(char)
         playerBubbles[plr.Name] = {}
-        task.wait(1)
+        char:WaitForChild("Head", 5)
+        task.wait(0.5)
         getBillboard(char)
     end)
 end
 
+Players.PlayerAdded:Connect(setupPlayer)
+for _, plr in ipairs(Players:GetPlayers()) do
+    setupPlayer(plr)
+end
+
 -- ====================================================
--- 📤 إرسال (سريع جداً)
+-- 📤 إرسال
 -- ====================================================
 
 local function sendMessage(text)
     if text == "" then return end
     
-    -- ✨ أظهر الفقاعة محلياً فوراً (قبل الإرسال للسيرفر)
     showBubbleAbovePlayer(LocalPlayer.Name, text)
     
     local data = {
@@ -380,7 +380,7 @@ box.FocusLost:Connect(function(enter)
     end
 end)
 
--- 🔄 جلب الرسائل (أسرع شي ممكن)
+-- 🔄 جلب الرسائل
 local shownIds = {}
 local firstLoad = true
 
@@ -404,7 +404,6 @@ task.spawn(function()
                             shownIds[v.id] = true
                             addMessage(v.username, v.message)
                             
-                            -- فقاعة (للجميع ما عدا أنا - لأني عرضتها محلياً)
                             if not firstLoad and v.username ~= LocalPlayer.Name then
                                 showBubbleAbovePlayer(v.username, v.message)
                             end
@@ -439,4 +438,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-print("✅ Pro Chat v5 جاهز — مدمج وسريع ⚡")
+print("✅ Pro Chat v6 — تحت Roblox + فوق الراس 🎯")
