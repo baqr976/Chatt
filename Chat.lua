@@ -1,4 +1,4 @@
--- 💬 Supabase Pro Chat v9 (Locked Above Head)
+-- 💬 Supabase Pro Chat v10 (Attachment-Based Bubble)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -15,20 +15,15 @@ if not request then warn("❌ Executor لا يدعم HTTP") return end
 
 if CoreGui:FindFirstChild("ProChat") then CoreGui.ProChat:Destroy() end
 
--- ====================================================
--- 🎨 GUI
--- ====================================================
-
 local gui = Instance.new("ScreenGui")
 gui.Name = "ProChat"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Parent = CoreGui
 
--- 🔘 زر الشات (أكثر يمين)
 local toggleBtn = Instance.new("TextButton", gui)
 toggleBtn.Size = UDim2.new(0, 32, 0, 32)
-toggleBtn.Position = UDim2.new(0, 180, 0, 5)  -- ⬅️ أكثر يمين
+toggleBtn.Position = UDim2.new(0, 180, 0, 5)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 90)
 toggleBtn.BackgroundTransparency = 0.3
 toggleBtn.Text = "💬"
@@ -43,7 +38,6 @@ local btnStroke = Instance.new("UIStroke", toggleBtn)
 btnStroke.Color = Color3.fromRGB(120, 120, 220)
 btnStroke.Transparency = 0.5
 
--- 🪟 صندوق الشات
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0.25, 0, 0.28, 0)
 frame.Position = UDim2.new(0, 5, 0, 45)
@@ -120,7 +114,6 @@ end
 
 local function addMessage(user, msg)
     local isMe = user == LocalPlayer.Name
-    
     local container = Instance.new("Frame", messages)
     container.Size = UDim2.new(1, -6, 0, 0)
     container.AutomaticSize = Enum.AutomaticSize.Y
@@ -168,56 +161,46 @@ local function addMessage(user, msg)
     messages.CanvasPosition = Vector2.new(0, messages.AbsoluteCanvasSize.Y)
 end
 
--- ====================================================
--- 🎈 الفقاعة (مقفلة فوق الراس)
--- ====================================================
-
+-- 🎈 الفقاعة (Attachment-Based)
 local playerBubbles = {}
 
 local function findHead(character)
     if not character then return nil end
-    
-    local head = character:FindFirstChild("Head") 
-                or character:FindFirstChild("head")
-                or character:FindFirstChild("HEAD")
-    
-    if head and head:IsA("BasePart") then
-        return head
-    end
-    
+    local head = character:FindFirstChild("Head")
+    if head and head:IsA("BasePart") then return head end
     for _, part in ipairs(character:GetDescendants()) do
         if part:IsA("BasePart") and part.Name:lower():find("head") then
             return part
         end
     end
-    
     return nil
 end
 
+-- ✨ الحل الجديد بالـ Attachment
 local function getBillboard(character)
     local head = findHead(character)
     if not head then return nil end
     
-    local existing = head:FindFirstChild("ProChatBillboard")
-    if existing then return existing end
+    local old = head:FindFirstChild("ProChatBillboard")
+    if old then old:Destroy() end
+    
+    local attachment = head:FindFirstChild("ProChatAttachment")
+    if not attachment then
+        attachment = Instance.new("Attachment")
+        attachment.Name = "ProChatAttachment"
+        attachment.Position = Vector3.new(0, head.Size.Y / 2 + 1, 0)
+        attachment.Parent = head
+    end
     
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ProChatBillboard"
     billboard.Size = UDim2.new(0, 220, 0, 180)
-    
-    -- 🔑 الحل: StudsOffset فقط (ثابت دائماً بالنسبة للراس)
-    -- نحسب نص ارتفاع الراس + 1.5 للتفاوت
-    local headHeight = head.Size.Y
-    billboard.StudsOffset = Vector3.new(0, headHeight + 1.5, 0)
-    
-    -- ❌ لا نستخدم ExtentsOffset (هذا اللي يخلي الفقاعة "تطفو")
-    -- ❌ لا نستخدم StudsOffsetWorldSpace
-    
+    billboard.StudsOffset = Vector3.new(0, 0, 0)
     billboard.AlwaysOnTop = true
     billboard.LightInfluence = 0
     billboard.MaxDistance = 200
     billboard.ResetOnSpawn = false
-    billboard.Adornee = head
+    billboard.Adornee = attachment
     billboard.Parent = head
     
     local container = Instance.new("Frame", billboard)
@@ -273,9 +256,7 @@ local function createBubble(container, message)
     txt.TextTransparency = 1
     stroke.Transparency = 1
     
-    TweenService:Create(bubble, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        BackgroundTransparency = 0.05
-    }):Play()
+    TweenService:Create(bubble, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {BackgroundTransparency = 0.05}):Play()
     TweenService:Create(txt, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
     TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 0.4}):Play()
     
@@ -284,18 +265,11 @@ end
 
 local function removeBubble(data)
     if not data or not data.bubble or not data.bubble.Parent then return end
-    
-    local fadeBg = TweenService:Create(data.bubble, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {BackgroundTransparency = 1})
+    local fadeBg = TweenService:Create(data.bubble, TweenInfo.new(0.25), {BackgroundTransparency = 1})
     local fadeTxt = TweenService:Create(data.txt, TweenInfo.new(0.25), {TextTransparency = 1})
     local fadeStroke = TweenService:Create(data.stroke, TweenInfo.new(0.25), {Transparency = 1})
-    
-    fadeBg:Play()
-    fadeTxt:Play()
-    fadeStroke:Play()
-    
-    fadeBg.Completed:Connect(function()
-        if data.bubble then data.bubble:Destroy() end
-    end)
+    fadeBg:Play() fadeTxt:Play() fadeStroke:Play()
+    fadeBg.Completed:Connect(function() if data.bubble then data.bubble:Destroy() end end)
 end
 
 local function showBubbleAbovePlayer(playerName, message)
@@ -308,10 +282,7 @@ local function showBubbleAbovePlayer(playerName, message)
     local container = billboard:FindFirstChild("Container")
     if not container then return end
     
-    if not playerBubbles[playerName] then
-        playerBubbles[playerName] = {}
-    end
-    
+    if not playerBubbles[playerName] then playerBubbles[playerName] = {} end
     local bubbleList = playerBubbles[playerName]
     
     if #bubbleList >= 3 then
@@ -354,20 +325,10 @@ for _, plr in ipairs(Players:GetPlayers()) do
     setupPlayer(plr)
 end
 
--- ====================================================
--- 📤 إرسال واستقبال
--- ====================================================
-
 local function sendMessage(text)
     if text == "" then return end
-    
     showBubbleAbovePlayer(LocalPlayer.Name, text)
-    
-    local data = {
-        username = LocalPlayer.Name,
-        message = text
-    }
-    
+    local data = {username = LocalPlayer.Name, message = text}
     task.spawn(function()
         pcall(function()
             request({
@@ -402,12 +363,8 @@ task.spawn(function()
             local response = request({
                 Url = PROJECT_URL .. "/rest/v1/chat_messages?select=*&order=id.asc&limit=10",
                 Method = "GET",
-                Headers = {
-                    ["apikey"] = ANON_KEY,
-                    ["Authorization"] = "Bearer " .. ANON_KEY
-                }
+                Headers = {["apikey"] = ANON_KEY, ["Authorization"] = "Bearer " .. ANON_KEY}
             })
-            
             if response and response.Body then
                 local decoded = HttpService:JSONDecode(response.Body)
                 if type(decoded) == "table" then
@@ -415,7 +372,6 @@ task.spawn(function()
                         if v.id and not shownIds[v.id] then
                             shownIds[v.id] = true
                             addMessage(v.username, v.message)
-                            
                             if not firstLoad and v.username ~= LocalPlayer.Name then
                                 showBubbleAbovePlayer(v.username, v.message)
                             end
@@ -431,22 +387,17 @@ end)
 local isOpen = false
 toggleBtn.MouseButton1Click:Connect(function()
     isOpen = not isOpen
-    
     if isOpen then
         frame.Visible = true
         frame.Size = UDim2.new(0, 0, 0, 0)
-        TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0.25, 0, 0.28, 0)
-        }):Play()
+        TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Size = UDim2.new(0.25, 0, 0.28, 0)}):Play()
         toggleBtn.Text = "✕"
     else
-        TweenService:Create(frame, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {
-            Size = UDim2.new(0, 0, 0, 0)
-        }):Play()
+        TweenService:Create(frame, TweenInfo.new(0.15), {Size = UDim2.new(0, 0, 0, 0)}):Play()
         toggleBtn.Text = "💬"
         task.wait(0.15)
         frame.Visible = false
     end
 end)
 
-print("✅ Pro Chat v9 — Locked Above Head 🔒")
+print("✅ Pro Chat v10 — Attachment Locked 🔒")
