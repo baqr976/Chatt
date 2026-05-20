@@ -1,9 +1,10 @@
--- 💬 Supabase Mini Chat v3 (Fast + Auto Clean)
+-- 💬 Supabase Pro Chat v4 (Real Chat Bubbles)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -13,85 +14,60 @@ local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 -- 🌐 دالة الطلبات
 local request = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
 if not request then
-    warn("❌ الـ Executor لا يدعم HTTP Requests")
+    warn("❌ Executor لا يدعم HTTP")
     return
 end
 
 -- 🧹 احذف القديم
-if CoreGui:FindFirstChild("MiniChat") then
-    CoreGui.MiniChat:Destroy()
+if CoreGui:FindFirstChild("ProChat") then
+    CoreGui.ProChat:Destroy()
 end
 
--- 🎨 GUI
+-- ====================================================
+-- 📌 PART 1: شات GUI رئيسي (مكان Roblox الأصلي)
+-- ====================================================
+
 local gui = Instance.new("ScreenGui")
-gui.Name = "MiniChat"
+gui.Name = "ProChat"
 gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
+gui.IgnoreGuiInset = false
 gui.Parent = CoreGui
 
--- 🔘 زر الفتح/الإغلاق (قابل للسحب)
+-- 🔘 زر صغير لفتح/إغلاق
 local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0, 45, 0, 45)
-toggleBtn.Position = UDim2.new(0, 15, 0.5, -22)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 120)
+toggleBtn.Size = UDim2.new(0, 35, 0, 35)
+toggleBtn.Position = UDim2.new(0, 8, 0, 8)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 90)
 toggleBtn.BackgroundTransparency = 0.3
 toggleBtn.Text = "💬"
-toggleBtn.TextSize = 20
+toggleBtn.TextSize = 16
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.BorderSizePixel = 0
 toggleBtn.AutoButtonColor = false
-toggleBtn.Active = true
-toggleBtn.Draggable = true
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1, 0)
+toggleBtn.ZIndex = 10
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
 local btnStroke = Instance.new("UIStroke", toggleBtn)
-btnStroke.Color = Color3.fromRGB(150, 150, 255)
-btnStroke.Transparency = 0.4
+btnStroke.Color = Color3.fromRGB(120, 120, 220)
+btnStroke.Transparency = 0.5
 
--- 🪟 إطار الشات
+-- 🪟 إطار الشات (نفس مكان وحجم Roblox الأصلي)
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 250, 0, 280)
-frame.Position = UDim2.new(0, 70, 0.5, -140)
+frame.Size = UDim2.new(0, 360, 0, 220)
+frame.Position = UDim2.new(0, 8, 0, 50)
 frame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-frame.BackgroundTransparency = 0.25
+frame.BackgroundTransparency = 0.35
 frame.BorderSizePixel = 0
 frame.Visible = false
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 local frameStroke = Instance.new("UIStroke", frame)
 frameStroke.Color = Color3.fromRGB(100, 100, 200)
-frameStroke.Transparency = 0.5
+frameStroke.Transparency = 0.6
 
--- 🔝 الهيدر
-local header = Instance.new("Frame", frame)
-header.Size = UDim2.new(1, 0, 0, 28)
-header.BackgroundColor3 = Color3.fromRGB(50, 50, 90)
-header.BackgroundTransparency = 0.3
-header.BorderSizePixel = 0
-Instance.new("UICorner", header).CornerRadius = UDim.new(0, 12)
-
-local title = Instance.new("TextLabel", header)
-title.Size = UDim2.new(1, -30, 1, 0)
-title.Position = UDim2.new(0, 10, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "💬 الدردشة"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextSize = 12
-title.Font = Enum.Font.GothamBold
-title.TextXAlignment = Enum.TextXAlignment.Left
-
-local closeBtn = Instance.new("TextButton", header)
-closeBtn.Size = UDim2.new(0, 24, 0, 24)
-closeBtn.Position = UDim2.new(1, -26, 0, 2)
-closeBtn.BackgroundTransparency = 1
-closeBtn.Text = "✕"
-closeBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
-closeBtn.TextSize = 14
-closeBtn.Font = Enum.Font.GothamBold
-
--- 💬 منطقة الرسائل
+-- 💬 الرسائل
 local messages = Instance.new("ScrollingFrame", frame)
-messages.Size = UDim2.new(1, -10, 1, -70)
-messages.Position = UDim2.new(0, 5, 0, 33)
+messages.Size = UDim2.new(1, -10, 1, -45)
+messages.Position = UDim2.new(0, 5, 0, 5)
 messages.CanvasSize = UDim2.new(0, 0, 0, 0)
 messages.ScrollBarThickness = 3
 messages.ScrollBarImageColor3 = Color3.fromRGB(120, 120, 200)
@@ -100,7 +76,7 @@ messages.BorderSizePixel = 0
 messages.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
 local layout = Instance.new("UIListLayout", messages)
-layout.Padding = UDim.new(0, 4)
+layout.Padding = UDim.new(0, 3)
 
 local pad = Instance.new("UIPadding", messages)
 pad.PaddingTop = UDim.new(0, 4)
@@ -110,10 +86,10 @@ pad.PaddingRight = UDim.new(0, 4)
 
 -- ⌨️ صندوق الكتابة
 local inputBg = Instance.new("Frame", frame)
-inputBg.Size = UDim2.new(1, -10, 0, 30)
-inputBg.Position = UDim2.new(0, 5, 1, -34)
-inputBg.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
-inputBg.BackgroundTransparency = 0.2
+inputBg.Size = UDim2.new(1, -10, 0, 32)
+inputBg.Position = UDim2.new(0, 5, 1, -37)
+inputBg.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+inputBg.BackgroundTransparency = 0.25
 inputBg.BorderSizePixel = 0
 Instance.new("UICorner", inputBg).CornerRadius = UDim.new(0, 8)
 
@@ -122,7 +98,7 @@ box.Size = UDim2.new(1, -10, 1, 0)
 box.Position = UDim2.new(0, 8, 0, 0)
 box.BackgroundTransparency = 1
 box.PlaceholderText = "اكتب هنا... 😊"
-box.PlaceholderColor3 = Color3.fromRGB(150, 150, 180)
+box.PlaceholderColor3 = Color3.fromRGB(140, 140, 170)
 box.Text = ""
 box.TextColor3 = Color3.new(1, 1, 1)
 box.Font = Enum.Font.GothamMedium
@@ -130,7 +106,7 @@ box.TextSize = 12
 box.TextXAlignment = Enum.TextXAlignment.Right
 box.ClearTextOnFocus = false
 
--- 🎨 ألوان لكل لاعب
+-- 🎨 ألوان للاعبين
 local userColors = {}
 local palette = {
     Color3.fromRGB(255, 120, 120),
@@ -148,7 +124,7 @@ local function getColor(name)
     return userColors[name]
 end
 
--- ➕ إضافة رسالة
+-- ➕ إضافة رسالة للشات
 local function addMessage(user, msg)
     local isMe = user == LocalPlayer.Name
     
@@ -158,32 +134,32 @@ local function addMessage(user, msg)
     container.BackgroundColor3 = isMe and Color3.fromRGB(60, 50, 130) or Color3.fromRGB(40, 40, 60)
     container.BackgroundTransparency = 0.3
     container.BorderSizePixel = 0
-    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 6)
     
     local p = Instance.new("UIPadding", container)
-    p.PaddingTop = UDim.new(0, 4)
-    p.PaddingBottom = UDim.new(0, 4)
+    p.PaddingTop = UDim.new(0, 3)
+    p.PaddingBottom = UDim.new(0, 3)
     p.PaddingLeft = UDim.new(0, 6)
     p.PaddingRight = UDim.new(0, 6)
     
     local nameLbl = Instance.new("TextLabel", container)
-    nameLbl.Size = UDim2.new(1, 0, 0, 14)
+    nameLbl.Size = UDim2.new(1, 0, 0, 13)
     nameLbl.BackgroundTransparency = 1
     nameLbl.Text = isMe and "أنت ✨" or user
     nameLbl.TextColor3 = getColor(user)
     nameLbl.Font = Enum.Font.GothamBold
-    nameLbl.TextSize = 11
+    nameLbl.TextSize = 10
     nameLbl.TextXAlignment = Enum.TextXAlignment.Right
     
     local msgLbl = Instance.new("TextLabel", container)
     msgLbl.Size = UDim2.new(1, 0, 0, 0)
-    msgLbl.Position = UDim2.new(0, 0, 0, 16)
+    msgLbl.Position = UDim2.new(0, 0, 0, 14)
     msgLbl.AutomaticSize = Enum.AutomaticSize.Y
     msgLbl.BackgroundTransparency = 1
     msgLbl.Text = msg
     msgLbl.TextColor3 = Color3.fromRGB(240, 240, 255)
     msgLbl.Font = Enum.Font.GothamMedium
-    msgLbl.TextSize = 12
+    msgLbl.TextSize = 11
     msgLbl.TextWrapped = true
     msgLbl.TextXAlignment = Enum.TextXAlignment.Right
     msgLbl.RichText = true
@@ -191,15 +167,168 @@ local function addMessage(user, msg)
     container.BackgroundTransparency = 1
     nameLbl.TextTransparency = 1
     msgLbl.TextTransparency = 1
-    TweenService:Create(container, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
-    TweenService:Create(nameLbl, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
-    TweenService:Create(msgLbl, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
+    TweenService:Create(container, TweenInfo.new(0.15), {BackgroundTransparency = 0.3}):Play()
+    TweenService:Create(nameLbl, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
+    TweenService:Create(msgLbl, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
     
-    task.wait(0.03)
+    task.wait(0.02)
     messages.CanvasPosition = Vector2.new(0, messages.AbsoluteCanvasSize.Y)
 end
 
--- 📤 إرسال
+-- ====================================================
+-- 📌 PART 2: نظام Chat Bubbles فوق الراس
+-- ====================================================
+
+local playerBubbles = {} -- {[playerName] = {bubbles = {}, billboard = ...}}
+
+local function createBillboard(character)
+    local head = character:FindFirstChild("Head")
+    if not head then return nil end
+    
+    local existing = head:FindFirstChild("ProChatBillboard")
+    if existing then return existing end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ProChatBillboard"
+    billboard.Size = UDim2.new(0, 200, 0, 150)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.LightInfluence = 0
+    billboard.MaxDistance = 100
+    billboard.Parent = head
+    
+    local container = Instance.new("Frame", billboard)
+    container.Size = UDim2.new(1, 0, 1, 0)
+    container.BackgroundTransparency = 1
+    container.Name = "Container"
+    
+    local list = Instance.new("UIListLayout", container)
+    list.Padding = UDim.new(0, 4)
+    list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    list.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    list.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    return billboard
+end
+
+-- إنشاء فقاعة رسالة
+local function createBubble(container, message)
+    local bubble = Instance.new("Frame", container)
+    bubble.Size = UDim2.new(0, 0, 0, 0)
+    bubble.AutomaticSize = Enum.AutomaticSize.XY
+    bubble.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    bubble.BackgroundTransparency = 0
+    bubble.BorderSizePixel = 0
+    Instance.new("UICorner", bubble).CornerRadius = UDim.new(0, 12)
+    
+    local stroke = Instance.new("UIStroke", bubble)
+    stroke.Color = Color3.fromRGB(200, 200, 200)
+    stroke.Thickness = 1
+    stroke.Transparency = 0.5
+    
+    local p = Instance.new("UIPadding", bubble)
+    p.PaddingTop = UDim.new(0, 6)
+    p.PaddingBottom = UDim.new(0, 6)
+    p.PaddingLeft = UDim.new(0, 10)
+    p.PaddingRight = UDim.new(0, 10)
+    
+    local txt = Instance.new("TextLabel", bubble)
+    txt.AutomaticSize = Enum.AutomaticSize.XY
+    txt.Size = UDim2.new(0, 0, 0, 0)
+    txt.BackgroundTransparency = 1
+    txt.Text = message
+    txt.TextColor3 = Color3.fromRGB(20, 20, 30)
+    txt.Font = Enum.Font.GothamMedium
+    txt.TextSize = 14
+    txt.TextWrapped = true
+    txt.RichText = true
+    txt.TextXAlignment = Enum.TextXAlignment.Center
+    
+    -- Max width
+    local sizeConstraint = Instance.new("UISizeConstraint", txt)
+    sizeConstraint.MaxSize = Vector2.new(180, math.huge)
+    
+    -- أنميشن الدخول
+    bubble.BackgroundTransparency = 1
+    txt.TextTransparency = 1
+    stroke.Transparency = 1
+    
+    TweenService:Create(bubble, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 0.05
+    }):Play()
+    TweenService:Create(txt, TweenInfo.new(0.25), {TextTransparency = 0}):Play()
+    TweenService:Create(stroke, TweenInfo.new(0.25), {Transparency = 0.5}):Play()
+    
+    return bubble, txt, stroke
+end
+
+-- اختفاء فقاعة بأنميشن
+local function removeBubble(bubble, txt, stroke)
+    if not bubble or not bubble.Parent then return end
+    
+    local fadeBg = TweenService:Create(bubble, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+        BackgroundTransparency = 1
+    })
+    local fadeTxt = TweenService:Create(txt, TweenInfo.new(0.3), {TextTransparency = 1})
+    local fadeStroke = TweenService:Create(stroke, TweenInfo.new(0.3), {Transparency = 1})
+    
+    fadeBg:Play()
+    fadeTxt:Play()
+    fadeStroke:Play()
+    
+    fadeBg.Completed:Connect(function()
+        if bubble then bubble:Destroy() end
+    end)
+end
+
+-- إظهار فقاعة فوق راس لاعب
+local function showBubbleAbovePlayer(playerName, message)
+    local player = Players:FindFirstChild(playerName)
+    if not player or not player.Character then return end
+    
+    local billboard = createBillboard(player.Character)
+    if not billboard then return end
+    
+    local container = billboard:FindFirstChild("Container")
+    if not container then return end
+    
+    -- إعداد بيانات اللاعب
+    if not playerBubbles[playerName] then
+        playerBubbles[playerName] = {}
+    end
+    
+    local bubbleData = playerBubbles[playerName]
+    
+    -- إذا فيه 3 فقاعات، احذف الأقدم
+    if #bubbleData >= 3 then
+        local oldest = table.remove(bubbleData, 1)
+        if oldest then
+            removeBubble(oldest.bubble, oldest.txt, oldest.stroke)
+        end
+    end
+    
+    -- أنشئ فقاعة جديدة
+    local bubble, txt, stroke = createBubble(container, message)
+    local data = {bubble = bubble, txt = txt, stroke = stroke}
+    table.insert(bubbleData, data)
+    
+    -- مؤقت 5 ثواني للحذف
+    task.delay(5, function()
+        -- شوف إذا الفقاعة موجودة في الذاكرة
+        for i, v in ipairs(bubbleData) do
+            if v == data then
+                table.remove(bubbleData, i)
+                removeBubble(v.bubble, v.txt, v.stroke)
+                break
+            end
+        end
+    end)
+end
+
+-- ====================================================
+-- 📌 PART 3: إرسال واستقبال
+-- ====================================================
+
 local function sendMessage(text)
     if text == "" then return end
     
@@ -232,10 +361,12 @@ box.FocusLost:Connect(function(enter)
     end
 end)
 
--- 🔄 جلب الرسائل (سريع)
+-- 🔄 جلب الرسائل (سرعة عالية)
 local shownIds = {}
+local firstLoad = true
+
 task.spawn(function()
-    while task.wait(0.6) do
+    while task.wait(0.5) do
         pcall(function()
             local response = request({
                 Url = PROJECT_URL .. "/rest/v1/chat_messages?select=*&order=id.asc&limit=10",
@@ -252,16 +383,27 @@ task.spawn(function()
                     for _, v in ipairs(decoded) do
                         if v.id and not shownIds[v.id] then
                             shownIds[v.id] = true
+                            
+                            -- أضف للشات
                             addMessage(v.username, v.message)
+                            
+                            -- أظهر فقاعة فوق راس اللاعب (إلا أول تحميل)
+                            if not firstLoad then
+                                showBubbleAbovePlayer(v.username, v.message)
+                            end
                         end
                     end
+                    firstLoad = false
                 end
             end
         end)
     end
 end)
 
--- 🎬 فتح وإغلاق
+-- ====================================================
+-- 📌 PART 4: فتح وإغلاق الشات
+-- ====================================================
+
 local isOpen = false
 local function toggle()
     isOpen = not isOpen
@@ -269,8 +411,9 @@ local function toggle()
     if isOpen then
         frame.Visible = true
         frame.Size = UDim2.new(0, 0, 0, 0)
+        frame.Position = UDim2.new(0, 8, 0, 50)
         TweenService:Create(frame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 250, 0, 280)
+            Size = UDim2.new(0, 360, 0, 220)
         }):Play()
         toggleBtn.Text = "✕"
     else
@@ -284,6 +427,5 @@ local function toggle()
 end
 
 toggleBtn.MouseButton1Click:Connect(toggle)
-closeBtn.MouseButton1Click:Connect(toggle)
 
-print("✅ Mini Chat v3 جاهز — سرعة قصوى ⚡")
+print("✅ Pro Chat v4 جاهز — فقاعات فوق الراس 🎈")
