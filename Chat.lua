@@ -1,10 +1,9 @@
--- 💬 Supabase Pro Chat v6 (Fixed Position + Above Head)
+-- 💬 Supabase Pro Chat v7 (Perfect Position)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -23,17 +22,20 @@ if CoreGui:FindFirstChild("ProChat") then CoreGui.ProChat:Destroy() end
 local gui = Instance.new("ScreenGui")
 gui.Name = "ProChat"
 gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true  -- ⬅️ تجاهل الـ TopBar عشان نتحكم بدقة
+gui.IgnoreGuiInset = true
 gui.Parent = CoreGui
 
--- 🔘 زر صغير (تحت علامة Roblox)
+-- 🔘 زر صغير جنب زر الشات الأصلي
+-- زر Roblox = ~ (5, 5) بحجم 32
+-- زر الشات الأصلي = ~ (45, 5)
+-- زرنا نحطه = (85, 5)
 local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0, 28, 0, 28)
-toggleBtn.Position = UDim2.new(0, 6, 0, 45)  -- ⬆️ تحت علامة Roblox مباشرة
+toggleBtn.Size = UDim2.new(0, 32, 0, 32)
+toggleBtn.Position = UDim2.new(0, 90, 0, 5)  -- ⬅️ جنب زر الشات الأصلي
 toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 90)
 toggleBtn.BackgroundTransparency = 0.3
 toggleBtn.Text = "💬"
-toggleBtn.TextSize = 13
+toggleBtn.TextSize = 14
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.BorderSizePixel = 0
@@ -44,10 +46,10 @@ local btnStroke = Instance.new("UIStroke", toggleBtn)
 btnStroke.Color = Color3.fromRGB(120, 120, 220)
 btnStroke.Transparency = 0.5
 
--- 🪟 إطار الشات (مرفوع تحت علامة Roblox)
+-- 🪟 صندوق الشات (تحت علامة Roblox مباشرة)
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0.25, 0, 0.28, 0)
-frame.Position = UDim2.new(0, 6, 0, 80)  -- ⬆️ مرفوع لفوق
+frame.Position = UDim2.new(0, 5, 0, 45)  -- ⬅️ تحت علامة Roblox مباشرة
 frame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 frame.BackgroundTransparency = 0.4
 frame.BorderSizePixel = 0
@@ -174,22 +176,12 @@ local function addMessage(user, msg)
 end
 
 -- ====================================================
--- 🎈 Chat Bubbles فوق الراس (بدقة)
+-- 🎈 الفقاعة فوق الراس (ثابتة دائماً)
 -- ====================================================
 
 local playerBubbles = {}
 
--- 🔍 احصل على ارتفاع الراس الحقيقي
-local function getHeadOffset(character)
-    local head = character:FindFirstChild("Head")
-    if not head then return 3 end
-    
-    -- نحسب ارتفاع البلبورد فوق الراس
-    -- نصف ارتفاع الراس + مساحة إضافية
-    local headSize = head.Size.Y / 2
-    return headSize + 1.5  -- 1.5 ستد إضافية فوق الراس
-end
-
+-- 🎯 إنشاء البلبورد ثابت فوق الراس
 local function getBillboard(character)
     local head = character:FindFirstChild("Head")
     if not head then return nil end
@@ -200,11 +192,12 @@ local function getBillboard(character)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ProChatBillboard"
     billboard.Size = UDim2.new(0, 220, 0, 180)
-    -- ✅ يتثبت فوق الراس بناءً على حجمه الحقيقي
-    billboard.StudsOffsetWorldSpace = Vector3.new(0, getHeadOffset(character), 0)
+    -- ✅ نستخدم StudsOffset عشان يكون فوق الراس دائماً مهما تغير الزوم
+    billboard.StudsOffset = Vector3.new(0, 2, 0)
+    billboard.ExtentsOffset = Vector3.new(0, 1, 0)  -- ⬅️ مهم: يخلي الفقاعة فوق حدود البلبورد
     billboard.AlwaysOnTop = true
     billboard.LightInfluence = 0
-    billboard.MaxDistance = 150
+    billboard.MaxDistance = 200
     billboard.ResetOnSpawn = false
     billboard.Adornee = head
     billboard.Parent = head
@@ -323,7 +316,6 @@ local function showBubbleAbovePlayer(playerName, message)
     end)
 end
 
--- 🔄 إعداد اللاعبين
 local function setupPlayer(plr)
     if plr.Character then
         getBillboard(plr.Character)
@@ -342,7 +334,7 @@ for _, plr in ipairs(Players:GetPlayers()) do
 end
 
 -- ====================================================
--- 📤 إرسال
+-- 📤 إرسال واستقبال
 -- ====================================================
 
 local function sendMessage(text)
@@ -380,7 +372,6 @@ box.FocusLost:Connect(function(enter)
     end
 end)
 
--- 🔄 جلب الرسائل
 local shownIds = {}
 local firstLoad = true
 
@@ -416,7 +407,6 @@ task.spawn(function()
     end
 end)
 
--- 🎬 فتح/إغلاق
 local isOpen = false
 toggleBtn.MouseButton1Click:Connect(function()
     isOpen = not isOpen
@@ -438,4 +428,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-print("✅ Pro Chat v6 — تحت Roblox + فوق الراس 🎯")
+print("✅ Pro Chat v7 — Position Fixed 🎯")
