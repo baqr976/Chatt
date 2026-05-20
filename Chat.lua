@@ -121,13 +121,13 @@ local function addMessage(user, msg)
     container.BackgroundTransparency = 0.3
     container.BorderSizePixel = 0
     Instance.new("UICorner", container).CornerRadius = UDim.new(0, 5)
-    
+
     local p = Instance.new("UIPadding", container)
     p.PaddingTop = UDim.new(0, 2)
     p.PaddingBottom = UDim.new(0, 2)
     p.PaddingLeft = UDim.new(0, 5)
     p.PaddingRight = UDim.new(0, 5)
-    
+
     local nameLbl = Instance.new("TextLabel", container)
     nameLbl.Size = UDim2.new(1, 0, 0, 11)
     nameLbl.BackgroundTransparency = 1
@@ -136,7 +136,7 @@ local function addMessage(user, msg)
     nameLbl.Font = Enum.Font.GothamBold
     nameLbl.TextSize = 9
     nameLbl.TextXAlignment = Enum.TextXAlignment.Right
-    
+
     local msgLbl = Instance.new("TextLabel", container)
     msgLbl.Size = UDim2.new(1, 0, 0, 0)
     msgLbl.Position = UDim2.new(0, 0, 0, 12)
@@ -149,19 +149,18 @@ local function addMessage(user, msg)
     msgLbl.TextWrapped = true
     msgLbl.TextXAlignment = Enum.TextXAlignment.Right
     msgLbl.RichText = true
-    
+
     container.BackgroundTransparency = 1
     nameLbl.TextTransparency = 1
     msgLbl.TextTransparency = 1
     TweenService:Create(container, TweenInfo.new(0.12), {BackgroundTransparency = 0.3}):Play()
     TweenService:Create(nameLbl, TweenInfo.new(0.12), {TextTransparency = 0}):Play()
     TweenService:Create(msgLbl, TweenInfo.new(0.12), {TextTransparency = 0}):Play()
-    
+
     task.wait(0.01)
     messages.CanvasPosition = Vector2.new(0, messages.AbsoluteCanvasSize.Y)
 end
 
--- 🎈 الفقاعة (Attachment-Based)
 local playerBubbles = {}
 
 local function findHead(character)
@@ -176,14 +175,14 @@ local function findHead(character)
     return nil
 end
 
--- ✨ الحل الجديد بالـ Attachment
+-- ✅ الإصلاح: StudsOffset للفوق + VerticalAlignment Top
 local function getBillboard(character)
     local head = findHead(character)
     if not head then return nil end
-    
+
     local old = head:FindFirstChild("ProChatBillboard")
     if old then old:Destroy() end
-    
+
     local attachment = head:FindFirstChild("ProChatAttachment")
     if not attachment then
         attachment = Instance.new("Attachment")
@@ -191,29 +190,29 @@ local function getBillboard(character)
         attachment.Position = Vector3.new(0, head.Size.Y / 2 + 1, 0)
         attachment.Parent = head
     end
-    
+
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ProChatBillboard"
     billboard.Size = UDim2.new(0, 220, 0, 180)
-    billboard.StudsOffset = Vector3.new(0, 0, 0)
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0) -- ✅ رفع الفقاعة للفوق
     billboard.AlwaysOnTop = true
     billboard.LightInfluence = 0
     billboard.MaxDistance = 200
     billboard.ResetOnSpawn = false
     billboard.Adornee = attachment
     billboard.Parent = head
-    
+
     local container = Instance.new("Frame", billboard)
     container.Size = UDim2.new(1, 0, 1, 0)
     container.BackgroundTransparency = 1
     container.Name = "Container"
-    
+
     local list = Instance.new("UIListLayout", container)
     list.Padding = UDim.new(0, 3)
     list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    list.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    list.VerticalAlignment = Enum.VerticalAlignment.Top -- ✅ من فوق للتحت
     list.SortOrder = Enum.SortOrder.LayoutOrder
-    
+
     return billboard
 end
 
@@ -225,18 +224,18 @@ local function createBubble(container, message)
     bubble.BackgroundTransparency = 0.05
     bubble.BorderSizePixel = 0
     Instance.new("UICorner", bubble).CornerRadius = UDim.new(0, 10)
-    
+
     local stroke = Instance.new("UIStroke", bubble)
     stroke.Color = Color3.fromRGB(180, 180, 200)
     stroke.Thickness = 1
     stroke.Transparency = 0.4
-    
+
     local p = Instance.new("UIPadding", bubble)
     p.PaddingTop = UDim.new(0, 5)
     p.PaddingBottom = UDim.new(0, 5)
     p.PaddingLeft = UDim.new(0, 9)
     p.PaddingRight = UDim.new(0, 9)
-    
+
     local txt = Instance.new("TextLabel", bubble)
     txt.AutomaticSize = Enum.AutomaticSize.XY
     txt.Size = UDim2.new(0, 0, 0, 0)
@@ -248,18 +247,18 @@ local function createBubble(container, message)
     txt.TextWrapped = true
     txt.RichText = true
     txt.TextXAlignment = Enum.TextXAlignment.Center
-    
+
     local sc = Instance.new("UISizeConstraint", txt)
     sc.MaxSize = Vector2.new(180, math.huge)
-    
+
     bubble.BackgroundTransparency = 1
     txt.TextTransparency = 1
     stroke.Transparency = 1
-    
+
     TweenService:Create(bubble, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {BackgroundTransparency = 0.05}):Play()
     TweenService:Create(txt, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
     TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 0.4}):Play()
-    
+
     return bubble, txt, stroke
 end
 
@@ -275,25 +274,25 @@ end
 local function showBubbleAbovePlayer(playerName, message)
     local player = Players:FindFirstChild(playerName)
     if not player or not player.Character then return end
-    
+
     local billboard = getBillboard(player.Character)
     if not billboard then return end
-    
+
     local container = billboard:FindFirstChild("Container")
     if not container then return end
-    
+
     if not playerBubbles[playerName] then playerBubbles[playerName] = {} end
     local bubbleList = playerBubbles[playerName]
-    
+
     if #bubbleList >= 3 then
         local oldest = table.remove(bubbleList, 1)
         removeBubble(oldest)
     end
-    
+
     local bubble, txt, stroke = createBubble(container, message)
     local data = {bubble = bubble, txt = txt, stroke = stroke}
     table.insert(bubbleList, data)
-    
+
     task.delay(5, function()
         for i, v in ipairs(bubbleList) do
             if v == data then
@@ -400,4 +399,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-print("✅ Pro Chat v10 — Attachment Locked 🔒")
+print("✅ Pro Chat v10 — Fixed Bubble Position 🔒")
