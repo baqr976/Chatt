@@ -35,7 +35,7 @@ toggleBtn.AutoButtonColor = false
 toggleBtn.ZIndex = 10
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
-local CHAT_SIZE = UDim2.new(0.35, 0, 0.27, 0)
+local CHAT_SIZE = UDim2.new(0.35, 0, 0.30, 0)
 
 local frame = Instance.new("Frame", gui)
 frame.Size = CHAT_SIZE
@@ -363,7 +363,7 @@ toggleBtn.MouseButton1Click:Connect(function()
     else
         TweenService:Create(frame, TweenInfo.new(0.15), {Size = UDim2.new(0, 0, 0, 0)}):Play()
         toggleBtn.Text = "💬"
-        task.wait(0.05)
+        task.wait(0.01)
         frame.Visible = false
     end
 end)
