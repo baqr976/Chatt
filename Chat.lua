@@ -37,7 +37,7 @@ toggleBtn.ZIndex = 10
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
 -- ✅ الإطار الرئيسي - 25% من الشاشة
-local CHAT_SIZE = UDim2.new(0.25, 0, 0.25, 0)
+local CHAT_SIZE = UDim2.new(0.50, 0, 0.25, 0)
 
 local frame = Instance.new("Frame", gui)
 frame.Size = CHAT_SIZE
