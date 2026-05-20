@@ -1,4 +1,4 @@
--- 💬 Supabase Pro Chat v7 (Perfect Position)
+-- 💬 Supabase Pro Chat v8 (Smart Head Detection)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -16,7 +16,7 @@ if not request then warn("❌ Executor لا يدعم HTTP") return end
 if CoreGui:FindFirstChild("ProChat") then CoreGui.ProChat:Destroy() end
 
 -- ====================================================
--- 🎨 GUI الشات
+-- 🎨 GUI
 -- ====================================================
 
 local gui = Instance.new("ScreenGui")
@@ -25,13 +25,10 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Parent = CoreGui
 
--- 🔘 زر صغير جنب زر الشات الأصلي
--- زر Roblox = ~ (5, 5) بحجم 32
--- زر الشات الأصلي = ~ (45, 5)
--- زرنا نحطه = (85, 5)
+-- 🔘 زر شات (يمين شوي عن زر الشات الأصلي)
 local toggleBtn = Instance.new("TextButton", gui)
 toggleBtn.Size = UDim2.new(0, 32, 0, 32)
-toggleBtn.Position = UDim2.new(0, 90, 0, 5)  -- ⬅️ جنب زر الشات الأصلي
+toggleBtn.Position = UDim2.new(0, 130, 0, 5)  -- ⬅️ يمين شوي
 toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 90)
 toggleBtn.BackgroundTransparency = 0.3
 toggleBtn.Text = "💬"
@@ -46,10 +43,10 @@ local btnStroke = Instance.new("UIStroke", toggleBtn)
 btnStroke.Color = Color3.fromRGB(120, 120, 220)
 btnStroke.Transparency = 0.5
 
--- 🪟 صندوق الشات (تحت علامة Roblox مباشرة)
+-- 🪟 صندوق الشات
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0.25, 0, 0.28, 0)
-frame.Position = UDim2.new(0, 5, 0, 45)  -- ⬅️ تحت علامة Roblox مباشرة
+frame.Position = UDim2.new(0, 5, 0, 45)
 frame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 frame.BackgroundTransparency = 0.4
 frame.BorderSizePixel = 0
@@ -64,7 +61,6 @@ local frameStroke = Instance.new("UIStroke", frame)
 frameStroke.Color = Color3.fromRGB(100, 100, 200)
 frameStroke.Transparency = 0.6
 
--- 💬 الرسائل
 local messages = Instance.new("ScrollingFrame", frame)
 messages.Size = UDim2.new(1, -6, 1, -36)
 messages.Position = UDim2.new(0, 3, 0, 3)
@@ -84,7 +80,6 @@ pad.PaddingBottom = UDim.new(0, 3)
 pad.PaddingLeft = UDim.new(0, 3)
 pad.PaddingRight = UDim.new(0, 3)
 
--- ⌨️ صندوق الكتابة
 local inputBg = Instance.new("Frame", frame)
 inputBg.Size = UDim2.new(1, -6, 0, 26)
 inputBg.Position = UDim2.new(0, 3, 1, -29)
@@ -106,7 +101,6 @@ box.TextSize = 11
 box.TextXAlignment = Enum.TextXAlignment.Right
 box.ClearTextOnFocus = false
 
--- 🎨 ألوان
 local userColors = {}
 local palette = {
     Color3.fromRGB(255, 120, 120),
@@ -124,7 +118,6 @@ local function getColor(name)
     return userColors[name]
 end
 
--- ➕ إضافة رسالة
 local function addMessage(user, msg)
     local isMe = user == LocalPlayer.Name
     
@@ -176,14 +169,44 @@ local function addMessage(user, msg)
 end
 
 -- ====================================================
--- 🎈 الفقاعة فوق الراس (ثابتة دائماً)
+-- 🎈 الفقاعة فوق الراس (ذكية - تقرأ مكان الراس)
 -- ====================================================
 
 local playerBubbles = {}
 
--- 🎯 إنشاء البلبورد ثابت فوق الراس
+-- 🧠 يكتشف الراس بذكاء (R6/R15/Custom)
+local function findHead(character)
+    if not character then return nil end
+    
+    -- جرب الأسماء الشائعة
+    local head = character:FindFirstChild("Head") 
+                or character:FindFirstChild("head")
+                or character:FindFirstChild("HEAD")
+    
+    if head and head:IsA("BasePart") then
+        return head
+    end
+    
+    -- لو ما لقى، دور على أي جزء فيه اسم "head"
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name:lower():find("head") then
+            return part
+        end
+    end
+    
+    return nil
+end
+
+-- 🎯 يحسب ارتفاع الفقاعة بناء على حجم الراس
+local function getHeadHeight(head)
+    if not head then return 2 end
+    
+    -- نص ارتفاع الراس + مسافة إضافية
+    return (head.Size.Y / 2) + 0.8
+end
+
 local function getBillboard(character)
-    local head = character:FindFirstChild("Head")
+    local head = findHead(character)
     if not head then return nil end
     
     local existing = head:FindFirstChild("ProChatBillboard")
@@ -192,14 +215,14 @@ local function getBillboard(character)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ProChatBillboard"
     billboard.Size = UDim2.new(0, 220, 0, 180)
-    -- ✅ نستخدم StudsOffset عشان يكون فوق الراس دائماً مهما تغير الزوم
-    billboard.StudsOffset = Vector3.new(0, 2, 0)
-    billboard.ExtentsOffset = Vector3.new(0, 1, 0)  -- ⬅️ مهم: يخلي الفقاعة فوق حدود البلبورد
+    -- 🔑 الفقاعة فوق الراس بالضبط (حسب حجم الراس)
+    billboard.StudsOffsetWorldSpace = Vector3.new(0, getHeadHeight(head), 0)
+    billboard.ExtentsOffset = Vector3.new(0, 1, 0)  -- يضمن الفقاعة فوق الحدود
     billboard.AlwaysOnTop = true
     billboard.LightInfluence = 0
     billboard.MaxDistance = 200
     billboard.ResetOnSpawn = false
-    billboard.Adornee = head
+    billboard.Adornee = head  -- ⬅️ مربوط بالراس مباشرة
     billboard.Parent = head
     
     local container = Instance.new("Frame", billboard)
@@ -318,7 +341,10 @@ end
 
 local function setupPlayer(plr)
     if plr.Character then
-        getBillboard(plr.Character)
+        task.spawn(function()
+            task.wait(0.3)
+            getBillboard(plr.Character)
+        end)
     end
     plr.CharacterAdded:Connect(function(char)
         playerBubbles[plr.Name] = {}
@@ -428,4 +454,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-print("✅ Pro Chat v7 — Position Fixed 🎯")
+print("✅ Pro Chat v8 — Smart Head Detection 🧠")
