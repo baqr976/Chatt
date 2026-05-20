@@ -1,4 +1,4 @@
--- 💬 Supabase Pro Chat v8 (Smart Head Detection)
+-- 💬 Supabase Pro Chat v9 (Locked Above Head)
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -25,10 +25,10 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Parent = CoreGui
 
--- 🔘 زر شات (يمين شوي عن زر الشات الأصلي)
+-- 🔘 زر الشات (أكثر يمين)
 local toggleBtn = Instance.new("TextButton", gui)
 toggleBtn.Size = UDim2.new(0, 32, 0, 32)
-toggleBtn.Position = UDim2.new(0, 130, 0, 5)  -- ⬅️ يمين شوي
+toggleBtn.Position = UDim2.new(0, 180, 0, 5)  -- ⬅️ أكثر يمين
 toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 90)
 toggleBtn.BackgroundTransparency = 0.3
 toggleBtn.Text = "💬"
@@ -169,16 +169,14 @@ local function addMessage(user, msg)
 end
 
 -- ====================================================
--- 🎈 الفقاعة فوق الراس (ذكية - تقرأ مكان الراس)
+-- 🎈 الفقاعة (مقفلة فوق الراس)
 -- ====================================================
 
 local playerBubbles = {}
 
--- 🧠 يكتشف الراس بذكاء (R6/R15/Custom)
 local function findHead(character)
     if not character then return nil end
     
-    -- جرب الأسماء الشائعة
     local head = character:FindFirstChild("Head") 
                 or character:FindFirstChild("head")
                 or character:FindFirstChild("HEAD")
@@ -187,7 +185,6 @@ local function findHead(character)
         return head
     end
     
-    -- لو ما لقى، دور على أي جزء فيه اسم "head"
     for _, part in ipairs(character:GetDescendants()) do
         if part:IsA("BasePart") and part.Name:lower():find("head") then
             return part
@@ -195,14 +192,6 @@ local function findHead(character)
     end
     
     return nil
-end
-
--- 🎯 يحسب ارتفاع الفقاعة بناء على حجم الراس
-local function getHeadHeight(head)
-    if not head then return 2 end
-    
-    -- نص ارتفاع الراس + مسافة إضافية
-    return (head.Size.Y / 2) + 0.8
 end
 
 local function getBillboard(character)
@@ -215,14 +204,20 @@ local function getBillboard(character)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ProChatBillboard"
     billboard.Size = UDim2.new(0, 220, 0, 180)
-    -- 🔑 الفقاعة فوق الراس بالضبط (حسب حجم الراس)
-    billboard.StudsOffsetWorldSpace = Vector3.new(0, getHeadHeight(head), 0)
-    billboard.ExtentsOffset = Vector3.new(0, 1, 0)  -- يضمن الفقاعة فوق الحدود
+    
+    -- 🔑 الحل: StudsOffset فقط (ثابت دائماً بالنسبة للراس)
+    -- نحسب نص ارتفاع الراس + 1.5 للتفاوت
+    local headHeight = head.Size.Y
+    billboard.StudsOffset = Vector3.new(0, headHeight + 1.5, 0)
+    
+    -- ❌ لا نستخدم ExtentsOffset (هذا اللي يخلي الفقاعة "تطفو")
+    -- ❌ لا نستخدم StudsOffsetWorldSpace
+    
     billboard.AlwaysOnTop = true
     billboard.LightInfluence = 0
     billboard.MaxDistance = 200
     billboard.ResetOnSpawn = false
-    billboard.Adornee = head  -- ⬅️ مربوط بالراس مباشرة
+    billboard.Adornee = head
     billboard.Parent = head
     
     local container = Instance.new("Frame", billboard)
@@ -454,4 +449,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-print("✅ Pro Chat v8 — Smart Head Detection 🧠")
+print("✅ Pro Chat v9 — Locked Above Head 🔒")
