@@ -35,7 +35,7 @@ toggleBtn.AutoButtonColor = false
 toggleBtn.ZIndex = 10
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
 
-local CHAT_SIZE = UDim2.new(0.35, 0, 0.23, 0)
+local CHAT_SIZE = UDim2.new(0.35, 0, 0.25, 0)
 
 local frame = Instance.new("Frame", gui)
 frame.Size = CHAT_SIZE
@@ -127,7 +127,9 @@ local function addMessage(user, msg)
     label.TextSize = 12
     label.TextWrapped = true
     label.TextXAlignment = Enum.TextXAlignment.Right
-    label.Text = string.format('<font color="%s"><b>%s</b></font>: %s', hex, displayName, msg)
+    local displayName = user == LocalPlayer.Name and ("(" .. user .. ")") or user
+
+label.Text = string.format('%s  <font color="%s"><b>%s</b></font>', msg, hex, displayName)
 
     label.TextTransparency = 1
     TweenService:Create(label, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
