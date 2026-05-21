@@ -1,4 +1,4 @@
--- Pro Chat v13 - Optimized & Clean
+ث-- Pro Chat v13 - Optimized & Clean
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -24,7 +24,7 @@ if CoreGui:FindFirstChild("ProChat") then CoreGui.ProChat:Destroy() end
 --              ثوابت
 -- ══════════════════════════════════════
 
-local CHAT_SIZE = UDim2.new(0.32, 0, 0.28, 0)
+local CHAT_SIZE = UDim2.new(0.32, 0, 0.30, 0)
 local DISCORD_COLOR = Color3.fromRGB(88, 101, 242)
 local COLORS = {
     Color3.fromRGB(255, 107, 107),
