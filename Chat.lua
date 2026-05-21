@@ -1,4 +1,4 @@
--- 💬 Pro Chat v12 - Discord Bridge Edition
+-- Pro Chat v13 - Optimized & Clean
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
@@ -7,407 +7,311 @@ local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
-local PROJECT_URL = "https://fzkxotptuhmhkuhnsoav.supabase.co"
-local ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a3hvdHB0dWhtaGt1aG5zb2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ1OTYsImV4cCI6MjA5NDgzMDU5Nn0.etgvcKzEo89I_nvhB_EyLUbVgbV-gHgBJbW_NjNM7wo"
+local API_URL = "https://fzkxotptuhmhkuhnsoav.supabase.co/rest/v1/chat_messages"
+local API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a3hvdHB0dWhtaGt1aG5zb2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ1OTYsImV4cCI6MjA5NDgzMDU5Nn0.etgvcKzEo89I_nvhB_EyLUbVgbV-gHgBJbW_NjNM7wo"
+local HEADERS = {
+    ["apikey"] = API_KEY,
+    ["Authorization"] = "Bearer " .. API_KEY,
+    ["Content-Type"] = "application/json"
+}
 
 local request = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
-if not request then warn("❌ Executor لا يدعم HTTP") return end
+if not request then warn("HTTP not supported") return end
 
 if CoreGui:FindFirstChild("ProChat") then CoreGui.ProChat:Destroy() end
 
 -- ══════════════════════════════════════
---              GUI Setup
+--              ثوابت
+-- ══════════════════════════════════════
+
+local CHAT_SIZE = UDim2.new(0.32, 0, 0.28, 0)
+local DISCORD_COLOR = Color3.fromRGB(88, 101, 242)
+local COLORS = {
+    Color3.fromRGB(255, 107, 107),
+    Color3.fromRGB(78, 205, 196),
+    Color3.fromRGB(255, 230, 109),
+    Color3.fromRGB(199, 128, 232),
+    Color3.fromRGB(77, 182, 255),
+    Color3.fromRGB(255, 159, 243),
+    Color3.fromRGB(162, 255, 134),
+}
+
+local userColors = {}
+local shownIds = {}
+local playerBubbles = {}
+local firstLoad = true
+local lastSent = 0
+local isOpen = false
+
+-- ══════════════════════════════════════
+--              دوال مساعدة
+-- ══════════════════════════════════════
+
+local function getColor(name)
+    if not userColors[name] then
+        userColors[name] = COLORS[math.random(#COLORS)]
+    end
+    return userColors[name]
+end
+
+local function toHex(c)
+    return string.format("#%02X%02X%02X", c.R * 255, c.G * 255, c.B * 255)
+end
+
+local function isDiscord(name)
+    return name:sub(1, 3) == "DC:"
+end
+
+local function cleanName(name)
+    return isDiscord(name) and name:sub(4) or name
+end
+
+-- ══════════════════════════════════════
+--              GUI
 -- ══════════════════════════════════════
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "ProChat"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
+gui.DisplayOrder = 999
 gui.Parent = CoreGui
 
+-- زر التبديل
 local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0, 28, 0, 28)
-toggleBtn.Position = UDim2.new(0, 180, 0, 5)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-toggleBtn.BackgroundTransparency = 0.5
-toggleBtn.Text = "💬"
-toggleBtn.TextSize = 14
+toggleBtn.Size = UDim2.new(0, 32, 0, 32)
+toggleBtn.Position = UDim2.new(0, 8, 0, 8)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+toggleBtn.Text = "C"
+toggleBtn.TextSize = 16
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.BorderSizePixel = 0
-toggleBtn.AutoButtonColor = false
-toggleBtn.ZIndex = 10
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
+toggleBtn.ZIndex = 100
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
 
-local CHAT_SIZE = UDim2.new(0.35, 0, 0.30, 0)
-
+-- النافذة الرئيسية
 local frame = Instance.new("Frame", gui)
 frame.Size = CHAT_SIZE
-frame.Position = UDim2.new(0, 5, 0, 38)
-frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-frame.BackgroundTransparency = 0.5
+frame.Position = UDim2.new(0, 8, 0, 48)
+frame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+frame.BackgroundTransparency = 0.15
 frame.BorderSizePixel = 0
 frame.Visible = false
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
+frame.ClipsDescendants = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 
--- شريط العنوان
-local titleBar = Instance.new("Frame", frame)
-titleBar.Size = UDim2.new(1, 0, 0, 20)
-titleBar.Position = UDim2.new(0, 0, 0, 0)
-titleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-titleBar.BackgroundTransparency = 0.3
-titleBar.BorderSizePixel = 0
-Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 6)
+-- حدود خفيفة
+local stroke = Instance.new("UIStroke", frame)
+stroke.Color = Color3.fromRGB(60, 60, 60)
+stroke.Thickness = 1
 
-local titleLabel = Instance.new("TextLabel", titleBar)
-titleLabel.Size = UDim2.new(1, 0, 1, 0)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "💬 Pro Chat  |  💜 Discord Bridge"
-titleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextSize = 10
-titleLabel.TextXAlignment = Enum.TextXAlignment.Center
-
+-- قائمة الرسائل
 local messages = Instance.new("ScrollingFrame", frame)
-messages.Size = UDim2.new(1, -8, 1, -58)
-messages.Position = UDim2.new(0, 4, 0, 24)
+messages.Size = UDim2.new(1, -12, 1, -44)
+messages.Position = UDim2.new(0, 6, 0, 6)
 messages.CanvasSize = UDim2.new(0, 0, 0, 0)
-messages.ScrollBarThickness = 2
-messages.ScrollBarImageColor3 = Color3.fromRGB(200, 200, 200)
+messages.ScrollBarThickness = 3
+messages.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
 messages.BackgroundTransparency = 1
 messages.BorderSizePixel = 0
 messages.AutomaticCanvasSize = Enum.AutomaticSize.Y
+messages.ScrollingDirection = Enum.ScrollingDirection.Y
+messages.ElasticBehavior = Enum.ElasticBehavior.Never
 
 local layout = Instance.new("UIListLayout", messages)
-layout.Padding = UDim.new(0, 2)
+layout.Padding = UDim.new(0, 4)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
 
-local pad = Instance.new("UIPadding", messages)
-pad.PaddingTop = UDim.new(0, 2)
-pad.PaddingBottom = UDim.new(0, 2)
-pad.PaddingLeft = UDim.new(0, 4)
-pad.PaddingRight = UDim.new(0, 4)
+local padding = Instance.new("UIPadding", messages)
+padding.PaddingTop = UDim.new(0, 4)
+padding.PaddingBottom = UDim.new(0, 4)
+padding.PaddingLeft = UDim.new(0, 4)
+padding.PaddingRight = UDim.new(0, 4)
 
-local inputBg = Instance.new("Frame", frame)
-inputBg.Size = UDim2.new(1, -8, 0, 26)
-inputBg.Position = UDim2.new(0, 4, 1, -30)
-inputBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-inputBg.BackgroundTransparency = 0.4
-inputBg.BorderSizePixel = 0
-Instance.new("UICorner", inputBg).CornerRadius = UDim.new(0, 6)
+-- صندوق الكتابة
+local inputContainer = Instance.new("Frame", frame)
+inputContainer.Size = UDim2.new(1, -12, 0, 30)
+inputContainer.Position = UDim2.new(0, 6, 1, -36)
+inputContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+inputContainer.BorderSizePixel = 0
+Instance.new("UICorner", inputContainer).CornerRadius = UDim.new(0, 8)
 
-local box = Instance.new("TextBox", inputBg)
-box.Size = UDim2.new(1, -12, 1, 0)
+local box = Instance.new("TextBox", inputContainer)
+box.Size = UDim2.new(1, -16, 1, 0)
 box.Position = UDim2.new(0, 8, 0, 0)
 box.BackgroundTransparency = 1
-box.PlaceholderText = "اكتب رسالة..."
-box.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
+box.PlaceholderText = "Type a message..."
+box.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
 box.Text = ""
 box.TextColor3 = Color3.new(1, 1, 1)
-box.Font = Enum.Font.GothamMedium
-box.TextSize = 12
-box.TextXAlignment = Enum.TextXAlignment.Right
+box.Font = Enum.Font.Gotham
+box.TextSize = 13
+box.TextXAlignment = Enum.TextXAlignment.Left
 box.ClearTextOnFocus = false
-
--- ══════════════════════════════════════
---           نظام الألوان
--- ══════════════════════════════════════
-
-local userColors = {}
-local palette = {
-    Color3.fromRGB(255, 100, 100),
-    Color3.fromRGB(100, 180, 255),
-    Color3.fromRGB(150, 255, 100),
-    Color3.fromRGB(255, 180, 80),
-    Color3.fromRGB(200, 120, 255),
-    Color3.fromRGB(255, 130, 200),
-    Color3.fromRGB(100, 255, 210),
-}
-
-local DISCORD_COLOR = Color3.fromRGB(88, 101, 242)
-
-local function getColor(name)
-    if not userColors[name] then
-        userColors[name] = palette[math.random(1, #palette)]
-    end
-    return userColors[name]
-end
-
-local function colorToHex(c)
-    return string.format("#%02X%02X%02X",
-        math.floor(c.R * 255),
-        math.floor(c.G * 255),
-        math.floor(c.B * 255))
-end
+box.ClipsDescendants = true
 
 -- ══════════════════════════════════════
 --         إضافة رسالة للشات
 -- ══════════════════════════════════════
 
 local function addMessage(user, msg)
-    local isDiscord = user:sub(1, 3) == "DC:"
-    local displayName
-    local color
+    local discord = isDiscord(user)
+    local displayName = cleanName(user)
+    local color = discord and DISCORD_COLOR or getColor(user)
+    local isSelf = user == LocalPlayer.Name
 
-    if isDiscord then
-        -- رسالة من ديسكورد
-        displayName = "💜 " .. user:sub(4)
-        color = DISCORD_COLOR
-    elseif user == LocalPlayer.Name then
-        -- رسالتك أنت
-        displayName = user .. " ✨"
-        color = getColor(user)
-    else
-        -- لاعب ثاني من روبلوكس
-        displayName = user
-        color = getColor(user)
-    end
+    if isSelf then displayName = displayName .. " (you)" end
+    if discord then displayName = "[D] " .. displayName end
 
-    local hex = colorToHex(color)
+    local container = Instance.new("Frame", messages)
+    container.Size = UDim2.new(1, 0, 0, 0)
+    container.AutomaticSize = Enum.AutomaticSize.Y
+    container.BackgroundTransparency = 1
+    container.LayoutOrder = #messages:GetChildren()
 
-    local wrapper = Instance.new("Frame", messages)
-    wrapper.Size = UDim2.new(1, 0, 0, 0)
-    wrapper.AutomaticSize = Enum.AutomaticSize.Y
-    wrapper.BackgroundTransparency = 1
-
-    -- خلفية خاصة لرسائل ديسكورد
-    if isDiscord then
-        wrapper.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-        wrapper.BackgroundTransparency = 0.85
-        Instance.new("UICorner", wrapper).CornerRadius = UDim.new(0, 4)
-    end
-
-    local label = Instance.new("TextLabel", wrapper)
+    local label = Instance.new("TextLabel", container)
     label.Size = UDim2.new(1, 0, 0, 0)
     label.AutomaticSize = Enum.AutomaticSize.Y
     label.BackgroundTransparency = 1
     label.RichText = true
-    label.TextColor3 = Color3.fromRGB(220, 220, 220)
-    label.Font = Enum.Font.GothamMedium
-    label.TextSize = 12
+    label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 13
     label.TextWrapped = true
-    label.TextXAlignment = Enum.TextXAlignment.Right
+    label.TextXAlignment = Enum.TextXAlignment.Left
 
-    label.Text = string.format(
-        '%s  <font color="%s"><b>%s</b></font>',
-        msg, hex, displayName
-    )
+    label.Text = string.format('<font color="%s"><b>%s:</b></font> %s', toHex(color), displayName, msg)
 
+    -- أنيميشن سريع
     label.TextTransparency = 1
-    TweenService:Create(label, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
+    TweenService:Create(label, TweenInfo.new(0.1), {TextTransparency = 0}):Play()
 
-    task.wait(0.01)
-    messages.CanvasPosition = Vector2.new(0, messages.AbsoluteCanvasSize.Y)
+    -- سكرول للأسفل
+    task.defer(function()
+        messages.CanvasPosition = Vector2.new(0, messages.AbsoluteCanvasSize.Y)
+    end)
 end
 
 -- ══════════════════════════════════════
---         فقاعات فوق الرأس
+--         فقاعات الشات
 -- ══════════════════════════════════════
 
-local playerBubbles = {}
-
-local function findHead(character)
-    if not character then return nil end
-    local head = character:FindFirstChild("Head")
-    if head and head:IsA("BasePart") then return head end
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") and part.Name:lower():find("head") then
-            return part
-        end
-    end
-    return nil
+local function getHead(char)
+    return char and (char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart"))
 end
 
-local function getBillboard(character)
-    local head = findHead(character)
-    if not head then return nil end
-
-    local old = head:FindFirstChild("ProChatBillboard")
-    if old then old:Destroy() end
-
-    local attachment = head:FindFirstChild("ProChatAttachment")
-    if not attachment then
-        attachment = Instance.new("Attachment")
-        attachment.Name = "ProChatAttachment"
-        attachment.Position = Vector3.new(0, head.Size.Y / 2, 0)
-        attachment.Parent = head
-    end
-
+local function createBubble(head, text)
     local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ProChatBillboard"
-    billboard.Size = UDim2.new(0, 200, 0, 150)
-    billboard.SizeOffset = Vector2.new(0, 0.5)
-    billboard.StudsOffset = Vector3.new(0, 0, 0)
+    billboard.Name = "ChatBubble"
+    billboard.Size = UDim2.new(0, 180, 0, 60)
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
     billboard.AlwaysOnTop = true
-    billboard.LightInfluence = 0
-    billboard.MaxDistance = 100
-    billboard.ResetOnSpawn = false
-    billboard.Adornee = attachment
+    billboard.MaxDistance = 50
+    billboard.Adornee = head
     billboard.Parent = head
 
-    local container = Instance.new("Frame", billboard)
-    container.Size = UDim2.new(1, 0, 1, 0)
-    container.BackgroundTransparency = 1
-    container.Name = "Container"
-
-    local list = Instance.new("UIListLayout", container)
-    list.Padding = UDim.new(0, 4)
-    list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    list.VerticalAlignment = Enum.VerticalAlignment.Bottom
-    list.SortOrder = Enum.SortOrder.LayoutOrder
-
-    return billboard
-end
-
-local function createBubble(container, message, isDiscord)
-    local bubble = Instance.new("Frame", container)
-    bubble.AutomaticSize = Enum.AutomaticSize.XY
+    local bubble = Instance.new("Frame", billboard)
     bubble.Size = UDim2.new(0, 0, 0, 0)
+    bubble.AutomaticSize = Enum.AutomaticSize.XY
+    bubble.Position = UDim2.new(0.5, 0, 1, 0)
+    bubble.AnchorPoint = Vector2.new(0.5, 1)
+    bubble.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     bubble.BorderSizePixel = 0
-    Instance.new("UICorner", bubble).CornerRadius = UDim.new(0, 12)
+    Instance.new("UICorner", bubble).CornerRadius = UDim.new(0, 14)
 
-    -- لون الفقاعة حسب المصدر
-    if isDiscord then
-        bubble.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-    else
-        bubble.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    end
-
-    local p = Instance.new("UIPadding", bubble)
-    p.PaddingTop = UDim.new(0, 6)
-    p.PaddingBottom = UDim.new(0, 6)
-    p.PaddingLeft = UDim.new(0, 10)
-    p.PaddingRight = UDim.new(0, 10)
+    local pad = Instance.new("UIPadding", bubble)
+    pad.PaddingTop = UDim.new(0, 8)
+    pad.PaddingBottom = UDim.new(0, 8)
+    pad.PaddingLeft = UDim.new(0, 12)
+    pad.PaddingRight = UDim.new(0, 12)
 
     local txt = Instance.new("TextLabel", bubble)
-    txt.AutomaticSize = Enum.AutomaticSize.XY
     txt.Size = UDim2.new(0, 0, 0, 0)
+    txt.AutomaticSize = Enum.AutomaticSize.XY
     txt.BackgroundTransparency = 1
+    txt.Text = text
+    txt.TextColor3 = Color3.fromRGB(20, 20, 20)
     txt.Font = Enum.Font.GothamMedium
     txt.TextSize = 14
     txt.TextWrapped = true
     txt.RichText = true
-    txt.TextXAlignment = Enum.TextXAlignment.Center
 
-    if isDiscord then
-        -- رسائل ديسكورد: نص أبيض مع إيموجي
-        txt.Text = "💜 " .. message
-        txt.TextColor3 = Color3.fromRGB(255, 255, 255)
-    else
-        txt.Text = message
-        txt.TextColor3 = Color3.fromRGB(15, 15, 15)
-    end
+    local constraint = Instance.new("UISizeConstraint", txt)
+    constraint.MaxSize = Vector2.new(150, 100)
 
-    local sc = Instance.new("UISizeConstraint", txt)
-    sc.MaxSize = Vector2.new(160, math.huge)
-
+    -- أنيميشن دخول
     bubble.BackgroundTransparency = 1
     txt.TextTransparency = 1
+    TweenService:Create(bubble, TweenInfo.new(0.15, Enum.EasingStyle.Back), {BackgroundTransparency = 0}):Play()
+    TweenService:Create(txt, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
 
-    TweenService:Create(bubble, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {BackgroundTransparency = 0.05}):Play()
-    TweenService:Create(txt, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
-
-    return bubble, txt
+    return billboard, bubble, txt
 end
 
-local function removeBubble(data)
-    if not data or not data.bubble or not data.bubble.Parent then return end
-    local fadeBg = TweenService:Create(data.bubble, TweenInfo.new(0.25), {BackgroundTransparency = 1})
-    local fadeTxt = TweenService:Create(data.txt, TweenInfo.new(0.25), {TextTransparency = 1})
-    fadeBg:Play()
-    fadeTxt:Play()
-    fadeBg.Completed:Connect(function()
-        if data.bubble then data.bubble:Destroy() end
-    end)
-end
-
-local function showBubbleAbovePlayer(playerName, message, isDiscord)
+local function showBubble(playerName, text)
     local player = Players:FindFirstChild(playerName)
     if not player or not player.Character then return end
 
-    local billboard = getBillboard(player.Character)
-    if not billboard then return end
+    local head = getHead(player.Character)
+    if not head then return end
 
-    local container = billboard:FindFirstChild("Container")
-    if not container then return end
-
+    -- إزالة الفقاعات القديمة
     if not playerBubbles[playerName] then playerBubbles[playerName] = {} end
-    local bubbleList = playerBubbles[playerName]
+    local bubbles = playerBubbles[playerName]
 
-    if #bubbleList >= 3 then
-        local oldest = table.remove(bubbleList, 1)
-        removeBubble(oldest)
+    while #bubbles >= 3 do
+        local old = table.remove(bubbles, 1)
+        if old and old.Parent then
+            TweenService:Create(old, TweenInfo.new(0.1), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+            task.delay(0.1, function() old:Destroy() end)
+        end
     end
 
-    local bubble, txt = createBubble(container, message, isDiscord)
-    local data = {bubble = bubble, txt = txt}
-    table.insert(bubbleList, data)
+    local billboard = createBubble(head, text)
+    table.insert(bubbles, billboard)
 
-    task.delay(5, function()
-        for i, v in ipairs(bubbleList) do
-            if v == data then
-                table.remove(bubbleList, i)
-                removeBubble(v)
+    -- إزالة بعد 4 ثواني
+    task.delay(4, function()
+        for i, b in ipairs(bubbles) do
+            if b == billboard then
+                table.remove(bubbles, i)
                 break
             end
         end
+        if billboard and billboard.Parent then
+            local bubble = billboard:FindFirstChild("Frame") or billboard:FindFirstChildWhichIsA("Frame")
+            if bubble then
+                TweenService:Create(bubble, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
+            end
+            task.delay(0.15, function() billboard:Destroy() end)
+        end
     end)
-end
-
--- ══════════════════════════════════════
---         إعداد اللاعبين
--- ══════════════════════════════════════
-
-local function setupPlayer(plr)
-    if plr.Character then
-        task.spawn(function()
-            task.wait(0.3)
-            getBillboard(plr.Character)
-        end)
-    end
-    plr.CharacterAdded:Connect(function(char)
-        playerBubbles[plr.Name] = {}
-        char:WaitForChild("Head", 5)
-        task.wait(0.5)
-        getBillboard(char)
-    end)
-end
-
-Players.PlayerAdded:Connect(setupPlayer)
-for _, plr in ipairs(Players:GetPlayers()) do
-    setupPlayer(plr)
 end
 
 -- ══════════════════════════════════════
 --         إرسال رسالة
 -- ══════════════════════════════════════
 
-local lastSent = 0
-
-local function sendMessage(text)
+local function send(text)
     if text == "" then return end
+    if tick() - lastSent < 0.8 then return end
 
-    -- كولداون ثانية واحدة
-    if tick() - lastSent < 1 then return end
     lastSent = tick()
+    text = text:sub(1, 200)
 
-    -- حد الطول
-    if #text > 200 then text = text:sub(1, 200) end
+    showBubble(LocalPlayer.Name, text)
 
-    showBubbleAbovePlayer(LocalPlayer.Name, text, false)
-
-    local data = {username = LocalPlayer.Name, message = text}
     task.spawn(function()
         pcall(function()
             request({
-                Url = PROJECT_URL .. "/rest/v1/chat_messages",
+                Url = API_URL,
                 Method = "POST",
-                Headers = {
-                    ["apikey"] = ANON_KEY,
-                    ["Authorization"] = "Bearer " .. ANON_KEY,
-                    ["Content-Type"] = "application/json",
-                    ["Prefer"] = "return=minimal"
-                },
-                Body = HttpService:JSONEncode(data)
+                Headers = HEADERS,
+                Body = HttpService:JSONEncode({
+                    username = LocalPlayer.Name,
+                    message = text
+                })
             })
         end)
     end)
@@ -415,9 +319,8 @@ end
 
 box.FocusLost:Connect(function(enter)
     if enter and box.Text ~= "" then
-        local txt = box.Text
+        send(box.Text)
         box.Text = ""
-        sendMessage(txt)
     end
 end)
 
@@ -425,45 +328,34 @@ end)
 --         استقبال الرسائل
 -- ══════════════════════════════════════
 
-local shownIds = {}
-local firstLoad = true
-
 task.spawn(function()
-    while task.wait(0.3) do
+    while task.wait(0.4) do
         pcall(function()
-            local response = request({
-                Url = PROJECT_URL .. "/rest/v1/chat_messages?select=*&order=id.asc&limit=30",
+            local res = request({
+                Url = API_URL .. "?select=*&order=id.asc&limit=40",
                 Method = "GET",
-                Headers = {
-                    ["apikey"] = ANON_KEY,
-                    ["Authorization"] = "Bearer " .. ANON_KEY
-                }
+                Headers = HEADERS
             })
 
-            if response and response.Body then
-                local decoded = HttpService:JSONDecode(response.Body)
-                if type(decoded) == "table" then
-                    for _, v in ipairs(decoded) do
-                        if v.id and not shownIds[v.id] then
-                            shownIds[v.id] = true
+            if not res or not res.Body then return end
 
-                            local isDiscord = v.username:sub(1, 3) == "DC:"
+            local data = HttpService:JSONDecode(res.Body)
+            if type(data) ~= "table" then return end
 
-                            addMessage(v.username, v.message)
+            for _, v in ipairs(data) do
+                if v.id and not shownIds[v.id] then
+                    shownIds[v.id] = true
 
-                            if not firstLoad and not isDiscord and v.username ~= LocalPlayer.Name then
-                                showBubbleAbovePlayer(v.username, v.message, false)
-                            end
+                    addMessage(v.username, v.message)
 
-                            -- رسائل ديسكورد تظهر فقاعة فوق اللاعب الحالي
-                            if not firstLoad and isDiscord then
-                                showBubbleAbovePlayer(LocalPlayer.Name, v.message, true)
-                            end
-                        end
+                    -- فقاعة فقط للاعبين في روبلوكس (مو ديسكورد)
+                    if not firstLoad and not isDiscord(v.username) and v.username ~= LocalPlayer.Name then
+                        showBubble(v.username, v.message)
                     end
-                    firstLoad = false
                 end
             end
+
+            firstLoad = false
         end)
     end
 end)
@@ -472,20 +364,41 @@ end)
 --         زر الفتح والإغلاق
 -- ══════════════════════════════════════
 
-local isOpen = false
 toggleBtn.MouseButton1Click:Connect(function()
     isOpen = not isOpen
+
     if isOpen then
         frame.Visible = true
         frame.Size = UDim2.new(0, 0, 0, 0)
-        TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Size = CHAT_SIZE}):Play()
-        toggleBtn.Text = "✕"
+        frame.BackgroundTransparency = 1
+        TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Back), {
+            Size = CHAT_SIZE,
+            BackgroundTransparency = 0.15
+        }):Play()
+        toggleBtn.Text = "X"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
     else
-        TweenService:Create(frame, TweenInfo.new(0.15), {Size = UDim2.new(0, 0, 0, 0)}):Play()
-        toggleBtn.Text = "💬"
-        task.wait(0.15)
-        frame.Visible = false
+        TweenService:Create(frame, TweenInfo.new(0.15), {
+            Size = UDim2.new(0, 0, 0, 0),
+            BackgroundTransparency = 1
+        }):Play()
+        toggleBtn.Text = "C"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        task.delay(0.15, function() frame.Visible = false end)
     end
 end)
 
-print("✅ Pro Chat v12 — Discord Bridge Edition")
+-- ══════════════════════════════════════
+--         تجهيز اللاعبين
+-- ══════════════════════════════════════
+
+local function setupPlayer(plr)
+    plr.CharacterAdded:Connect(function()
+        playerBubbles[plr.Name] = {}
+    end)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do setupPlayer(p) end
+Players.PlayerAdded:Connect(setupPlayer)
+
+print("Pro Chat v13 Loaded")
