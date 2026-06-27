@@ -58,7 +58,7 @@ local COLORS = {
 }
 
 local MAX_MESSAGES = 150
-local POLL_INTERVAL = 0.4
+local POLL_INTERVAL = 0.15
 local AUTO_SCROLL_THRESHOLD = 40
 
 -- الفقاعات
