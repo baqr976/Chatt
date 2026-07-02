@@ -58,8 +58,8 @@ local COLORS = {
 }
 
 local MAX_MESSAGES = 150
-local POLL_INTERVAL = 0.15
-local AUTO_SCROLL_THRESHOLD = 40
+local POLL_INTERVAL = 0.2
+local AUTO_SCROLL_THRESHOLD = 100
 
 -- الفقاعات
 local BUBBLE_MAX_WIDTH = 230
