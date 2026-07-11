@@ -14,8 +14,8 @@ local Debris      = game:GetService("Debris")
 
 local LocalPlayer = Players.LocalPlayer
 
-local API_URL = "https://fzkxotptuhmhkuhnsoav.supabase.co/rest/v1/chat_messages"
-local API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a3hvdHB0dWhtaGt1aG5zb2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ1OTYsImV4cCI6MjA5NDgzMDU5Nn0.etgvcKzEo89I_nvhB_EyLUbVgbV-gHgBJbW_NjNM7wo"
+local API_URL = "https://ylhowczarhclwkpsagxo.supabase.co/rest/v1/chat_messages"
+local API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsaG93Y3phcmhjbHdrcHNhZ3hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MDQ2MTksImV4cCI6MjA5ODA4MDYxOX0.vnFWM8LZNgfBlKuGolX5K7p4xzldwLPrXdHfM43b7_E"
 local HEADERS = {
     ["apikey"]        = API_KEY,
     ["Authorization"] = "Bearer " .. API_KEY,
