@@ -545,15 +545,21 @@ local function createFeed(visible)
 
     local st = {scroll=scroll, layout=lay, queue={}, count=0, lastId=0, atBottom=true, channel=nil}
 
+    local function scrollToBottom()
+        scroll.CanvasPosition = Vector2.new(0, math.max(0, lay.AbsoluteContentSize.Y - scroll.AbsoluteSize.Y))
+    end
+
     lay:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        if st.atBottom then
-            scroll.CanvasPosition = Vector2.new(0, math.max(0, lay.AbsoluteContentSize.Y - scroll.AbsoluteSize.Y))
-        end
+        if not st.atBottom then return end
+        scrollToBottom()
+        -- defer: يمسك الحالات اللي AbsoluteContentSize تحسب قبل AutomaticSize يكتمل
+        task.defer(scrollToBottom)
     end)
     scroll:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
         local mx = math.max(0, lay.AbsoluteContentSize.Y - scroll.AbsoluteSize.Y)
         st.atBottom = (mx - scroll.CanvasPosition.Y) <= AUTO_SCROLL_THRESHOLD
     end)
+    st.scrollToBottom = scrollToBottom
     return st
 end
 
@@ -932,6 +938,9 @@ local function handleMsg(v, st, isRoom, bubbles)
     end
     if isRoom and roomBans[v.username] then return end
 
+    -- أرسل رسالة فعلية → نخفي نقاط الكتابة تبعه فوراً
+    hideTypingDots(v.username)
+
     addMessageTo(st, v.username, v.message)
     if isRoom then trackMember(v.username) end
 
@@ -1003,11 +1012,184 @@ local function startLoop(st, getCh, bubbles, isRoom)
 end
 
 -- ══════════════════════════════════════
+--   نظام نقاط "يكتب..." المتحركة فوق الراس
+-- ══════════════════════════════════════
+-- كيف يشتغل بدون جدول جديد:
+--   - اللاعب يكتب → نرسل لـ Supabase رسالة TYPING:اسمه بـ room="__typing__"
+--   - كل العملاء يستطلعون __typing__ ويشوفون من يكتب
+--   - نعرض بالون نقاط متحركة فوق راس اللاعب لمدة 2.5 ثانية
+
+local typingBillboards  = {}  -- [playerName] = billboardGui
+local typingExpiry      = {}  -- [playerName] = expiry tick
+local lastTypingSignal  = 0
+local lastTypingPollId  = 0
+
+local TYPING_INTERVAL   = 1.2   -- ثانية بين كل إشارة وأخرى
+local TYPING_EXPIRE     = 2.5   -- ثانية حتى تختفي النقاط بدون إشارة جديدة
+
+local function hideTypingDots(pname)
+    local bb = typingBillboards[pname]
+    if bb and bb.Parent then
+        local bg = bb:FindFirstChildWhichIsA("Frame")
+        if bg then
+            TweenService:Create(bg, TweenInfo.new(0.15), {BackgroundTransparency=1}):Play()
+            for _,c in ipairs(bg:GetChildren()) do
+                if c:IsA("Frame") then
+                    TweenService:Create(c, TweenInfo.new(0.15), {BackgroundTransparency=1}):Play()
+                end
+            end
+        end
+        task.delay(0.15, function() if bb.Parent then bb:Destroy() end end)
+    end
+    typingBillboards[pname] = nil
+    typingExpiry[pname]     = nil
+end
+
+local function showTypingDots(pname)
+    -- تحديث وقت الانتهاء
+    typingExpiry[pname] = tick() + TYPING_EXPIRE
+
+    -- لو البالون موجود بعد، ما نعيد إنشاءه
+    if typingBillboards[pname] and typingBillboards[pname].Parent then return end
+
+    local plr = Players:FindFirstChild(pname)
+    if not plr or not plr.Character then return end
+    local head = getHead(plr.Character)
+    if not head then return end
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name        = "TypingDots"
+    -- نفس حجم بالون الرسائل بس أصغر، يظهر تحته مباشرة (offset أقل)
+    bb.Size        = UDim2.new(0, 66, 0, 34)
+    bb.StudsOffset = Vector3.new(0, 1.6, 0)
+    bb.AlwaysOnTop = true
+    bb.MaxDistance = 60
+    bb.Adornee     = head
+    bb.Parent      = head
+    typingBillboards[pname] = bb
+
+    -- الخلفية البيضاء المدورة
+    local bg = Instance.new("Frame", bb)
+    bg.AnchorPoint       = Vector2.new(0.5, 1)
+    bg.Position          = UDim2.new(0.5, 0, 1, 0)
+    bg.Size              = UDim2.new(0, 54, 0, 26)
+    bg.BackgroundColor3  = Color3.fromRGB(255, 255, 255)
+    bg.BorderSizePixel   = 0
+    bg.BackgroundTransparency = 1
+    Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 13)
+
+    -- 3 نقاط داخل الخلفية
+    -- عرض 54px - padding 10px يميناً ويساراً = 34px usable
+    -- 3 نقاط x 8px + 2 فراغ x 5px = 34px → تبدأ من x=10
+    local dotPositions = {10, 23, 36}
+    local baseY  = 9   -- top من النقطة (26px tall, 8px dot → center at 13, so 13-4=9)
+    local upY    = 3   -- ارتفاع عند الصعود
+
+    local dots = {}
+    for i, xPos in ipairs(dotPositions) do
+        local dot = Instance.new("Frame", bg)
+        dot.Size             = UDim2.new(0, 8, 0, 8)
+        dot.Position         = UDim2.new(0, xPos, 0, baseY)
+        dot.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+        dot.BorderSizePixel  = 0
+        dot.BackgroundTransparency = 1
+        Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+        dots[i] = {frame=dot, xPos=xPos, baseY=baseY, upY=upY}
+    end
+
+    -- Fade in
+    TweenService:Create(bg, TweenInfo.new(0.15, Enum.EasingStyle.Back), {BackgroundTransparency=0}):Play()
+    for _, d in ipairs(dots) do
+        TweenService:Create(d.frame, TweenInfo.new(0.15), {BackgroundTransparency=0}):Play()
+    end
+
+    -- Animation loop: كل نقطة تتأخر 0.13 ثانية عن السابقة
+    for i, d in ipairs(dots) do
+        local dot    = d.frame
+        local xP     = d.xPos
+        local upPos  = UDim2.new(0, xP, 0, d.upY)
+        local dnPos  = UDim2.new(0, xP, 0, d.baseY)
+        task.spawn(function()
+            task.wait((i-1) * 0.13)
+            while dot and dot.Parent do
+                TweenService:Create(dot, TweenInfo.new(0.22, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {Position=upPos}):Play()
+                task.wait(0.22)
+                if not (dot and dot.Parent) then break end
+                TweenService:Create(dot, TweenInfo.new(0.22, Enum.EasingStyle.Sine, Enum.EasingDirection.In),  {Position=dnPos}):Play()
+                task.wait(0.25)
+            end
+        end)
+    end
+end
+
+-- إرسال إشارة "أنا أكتب" لـ Supabase
+local function sendTypingSignal()
+    local now = tick()
+    if now - lastTypingSignal < TYPING_INTERVAL then return end
+    lastTypingSignal = now
+    local ch = getChannel()
+    if not ch then return end
+    task.spawn(function()
+        pcall(function()
+            request({Url=API_URL, Method="POST", Headers=HEADERS,
+                Body=HttpService:JSONEncode({
+                    username = "TYPING",
+                    message  = LocalPlayer.Name..":"..ch,
+                    room     = "__typing__"
+                })})
+        end)
+    end)
+end
+
+-- حلقة استطلاع نقاط الكتابة
+task.spawn(function()
+    while task.wait(0.5) do
+        -- تنظيف منتهيي الصلاحية
+        for pname, expiry in pairs(typingExpiry) do
+            if tick() > expiry then hideTypingDots(pname) end
+        end
+        -- جلب إشارات جديدة
+        pcall(function()
+            local res = request({
+                Url = API_URL.."?select=*&order=id.asc&limit=30&room=eq.__typing__&id=gt."..lastTypingPollId,
+                Method="GET", Headers=HEADERS
+            })
+            if not (res and res.Body) then return end
+            local data = HttpService:JSONDecode(res.Body)
+            if type(data)~="table" then return end
+            for _,v in ipairs(data) do
+                if v.id and v.id > lastTypingPollId then
+                    lastTypingPollId = v.id
+                end
+                if v.username=="TYPING" and v.message then
+                    local typerName, typerCh = v.message:match("^(.+):(.+)$")
+                    -- نعرض النقاط فقط لو نفس القناة المفتوحة، ومو أنا
+                    local myChannel = getChannel()
+                    if typerName and typerCh
+                        and typerName ~= LocalPlayer.Name
+                        and typerCh == myChannel then
+                        showTypingDots(typerName)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- ══════════════════════════════════════
 --   Phase 3 — ربط الأحداث
 -- ══════════════════════════════════════
 
 box.FocusLost:Connect(function(enter) if enter then trySend() end end)
 sendBtn.MouseButton1Click:Connect(trySend)
+
+-- كشف الكتابة → إرسال إشارة
+box:GetPropertyChangedSignal("Text"):Connect(function()
+    if box.Text ~= "" then sendTypingSignal() end
+end)
+
+-- لما نرسل رسالة، نخفي نقاطنا عند الآخرين (هم يشوفون إشارة جديدة)
+-- ونخفي نقاط الكاتبين اللي أرسلوا فعلاً (تتعامل معها handleMsg)
 pressFeedback(sendBtn, DISCORD_COLOR)
 pressFeedback(btnCreate, Color3.fromRGB(50,160,90))
 pressFeedback(btnJoin,   Color3.fromRGB(160,130,50))
@@ -1045,7 +1227,7 @@ toggleBtn.MouseButton1Click:Connect(function()
             {Size=UDim2.new(0,0,0,0), BackgroundTransparency=1}):Play()
         toggleBtn.Text             = "C"
         toggleBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-        task.delay(0.15, function() frame.Visible=false end)
+        task.delay(0.15, function() if not isOpen then frame.Visible=false end end)
     end
 end)
 
@@ -1077,7 +1259,7 @@ task.defer(function()
 end)
 
 print("╔══════════════════════════════════════╗")
-print("║      Pro Chat v15 - LEGENDARY        ║")
+print("║    Pro Chat v15 - LEGENDARY FINAL    ║")
+print("║  + Typing dots  + Toggle fix         ║")
 print("║  Discord: discord.gg/CXzNPpdFh2     ║")
-print("║  رابط الديسكورد اتنسخ للحافظة! 🔗  ║")
 print("╚══════════════════════════════════════╝")
