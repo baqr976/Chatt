@@ -10,8 +10,8 @@ local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
-local API_URL = "https://fzkxotptuhmhkuhnsoav.supabase.co/rest/v1/chat_messages"
-local API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6a3hvdHB0dWhtaGt1aG5zb2F2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ1OTYsImV4cCI6MjA5NDgzMDU5Nn0.etgvcKzEo89I_nvhB_EyLUbVgbV-gHgBJbW_NjNM7wo"
+local API_URL = "https://qjswawxiqyrcpxonsclp.supabase.co/rest/v1/chat_messages""
+local API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqc3dhd3hpcXlyY3B4b25zY2xwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDU5NDYsImV4cCI6MjEwMDMyMTk0Nn0.vvp5z-t-ZHMRt9y9VaYK0XCekbUmHqo7dwL5pUlFatk"
 local HEADERS = {
     ["apikey"] = API_KEY,
     ["Authorization"] = "Bearer " .. API_KEY,
