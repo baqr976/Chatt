@@ -32,11 +32,25 @@ local settings = {
     chatX = 12,
     chatY = 55,
     color = Color3.fromRGB(88, 101, 242),
+    muted = false,
+    autoScroll = true,
+}
+
+local APP = {
+    name = "Pro Chat",
+    version = "12.0",
+    maxMessageLength = 240,
+    sendCooldown = 0.45,
+    pollInterval = 1.25,
+    historyLimit = 20,
 }
 
 local MIN_MESSAGES, MAX_MESSAGES = 2, 20
 local MIN_W, MAX_W = 0.30, 0.80
 local MIN_H, MAX_H = 0.24, 0.78
+local editButtonMode = false
+local editChatMode = false
+local isOpen = false
 
 
 local gui = Instance.new("ScreenGui")
@@ -50,7 +64,7 @@ toggleBtn.Size = UDim2.new(0, settings.buttonW, 0, settings.buttonH)
 toggleBtn.Position = UDim2.new(0, settings.buttonX, 0, settings.buttonY)
 toggleBtn.BackgroundColor3 = settings.color
 toggleBtn.BackgroundTransparency = 0.5
-toggleBtn.Text = "💬 Chat"
+toggleBtn.Text = "💬  CHAT"
 toggleBtn.TextSize = 13
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -58,15 +72,40 @@ toggleBtn.BorderSizePixel = 0
 toggleBtn.AutoButtonColor = false
 toggleBtn.ZIndex = 10
 Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
+local toggleStroke = Instance.new("UIStroke", toggleBtn)
+toggleStroke.Color = Color3.fromRGB(180, 190, 255)
+toggleStroke.Transparency = 0.35
+
+local unreadBadge = Instance.new("TextLabel", toggleBtn)
+unreadBadge.Size = UDim2.new(0, 17, 0, 17)
+unreadBadge.Position = UDim2.new(1, -8, 0, -7)
+unreadBadge.BackgroundColor3 = Color3.fromRGB(255, 83, 105)
+unreadBadge.Text = "0"
+unreadBadge.TextColor3 = Color3.new(1, 1, 1)
+unreadBadge.Font = Enum.Font.GothamBold
+unreadBadge.TextSize = 9
+unreadBadge.Visible = false
+unreadBadge.ZIndex = 12
+Instance.new("UICorner", unreadBadge).CornerRadius = UDim.new(1, 0)
 
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(settings.width, 0, settings.height, 0)
 frame.Position = UDim2.new(0, settings.chatX, 0, settings.chatY)
-frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-frame.BackgroundTransparency = 0.5
+frame.BackgroundColor3 = Color3.fromRGB(18, 20, 30)
+frame.BackgroundTransparency = 0.08
 frame.BorderSizePixel = 0
 frame.Visible = false
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
+local frameStroke = Instance.new("UIStroke", frame)
+frameStroke.Color = Color3.fromRGB(105, 122, 255)
+frameStroke.Transparency = 0.45
+frameStroke.Thickness = 1
+local frameGradient = Instance.new("UIGradient", frame)
+frameGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(29, 33, 53)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 13, 20)),
+})
+frameGradient.Rotation = 90
 
 
 local header = Instance.new("Frame", frame)
@@ -78,23 +117,43 @@ header.ZIndex = 20
 local titleLabel = Instance.new("TextLabel", header)
 titleLabel.Size = UDim2.new(1, -42, 1, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "💬  Global Chat"
+titleLabel.Text = "GLOBAL  •  CHAT"
 titleLabel.TextColor3 = Color3.new(1,1,1)
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextSize = 15
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.ZIndex = 21
 
+local onlineDot = Instance.new("Frame", header)
+onlineDot.Size = UDim2.new(0, 7, 0, 7)
+onlineDot.Position = UDim2.new(0, 2, 1, 2)
+onlineDot.BackgroundColor3 = Color3.fromRGB(81, 221, 142)
+onlineDot.BorderSizePixel = 0
+onlineDot.ZIndex = 21
+Instance.new("UICorner", onlineDot).CornerRadius = UDim.new(1, 0)
+
 local pcHint = Instance.new("TextLabel", header)
 pcHint.Size = UDim2.new(0, 150, 0, 20)
-pcHint.Position = UDim2.new(0, 0, 1, 0)
+pcHint.Position = UDim2.new(0, 12, 1, 0)
 pcHint.BackgroundTransparency = 1
-pcHint.Text = isMouse and "اضغط T للكتابة" or ""
+pcHint.Text = isMouse and "متصل الآن  •  اضغط T للكتابة" or "متصل الآن"
 pcHint.TextColor3 = Color3.fromRGB(175,175,185)
 pcHint.Font = Enum.Font.Gotham
 pcHint.TextSize = 10
 pcHint.TextXAlignment = Enum.TextXAlignment.Left
 pcHint.ZIndex = 21
+
+local connectionLabel = Instance.new("TextLabel", header)
+connectionLabel.Size = UDim2.new(0, 80, 0, 18)
+connectionLabel.Position = UDim2.new(1, -120, 1, 1)
+connectionLabel.BackgroundColor3 = Color3.fromRGB(48, 61, 69)
+connectionLabel.BackgroundTransparency = 0.18
+connectionLabel.Text = "● متصل"
+connectionLabel.TextColor3 = Color3.fromRGB(133, 240, 174)
+connectionLabel.Font = Enum.Font.GothamBold
+connectionLabel.TextSize = 9
+connectionLabel.ZIndex = 23
+Instance.new("UICorner", connectionLabel).CornerRadius = UDim.new(1, 0)
 
 local settingsBtn = Instance.new("TextButton", header)
 settingsBtn.Size = UDim2.new(0, 34, 0, 30)
@@ -107,6 +166,13 @@ settingsBtn.TextSize = 16
 settingsBtn.BorderSizePixel = 0
 settingsBtn.ZIndex = 22
 Instance.new("UICorner", settingsBtn).CornerRadius = UDim.new(0,8)
+
+local headerLine = Instance.new("Frame", frame)
+headerLine.Size = UDim2.new(1, -16, 0, 1)
+headerLine.Position = UDim2.new(0, 8, 0, 38)
+headerLine.BackgroundColor3 = Color3.fromRGB(100, 114, 190)
+headerLine.BackgroundTransparency = 0.68
+headerLine.BorderSizePixel = 0
 
 local messages = Instance.new("ScrollingFrame", frame)
 messages.Size = UDim2.new(1, -8, 1, -72)
@@ -130,16 +196,19 @@ pad.PaddingRight = UDim.new(0, 4)
 local inputBg = Instance.new("Frame", frame)
 inputBg.Size = UDim2.new(1, -8, 0, 26)
 inputBg.Position = UDim2.new(0, 4, 1, -30)
-inputBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-inputBg.BackgroundTransparency = 0.4
+inputBg.BackgroundColor3 = Color3.fromRGB(36, 40, 59)
+inputBg.BackgroundTransparency = 0.12
 inputBg.BorderSizePixel = 0
 Instance.new("UICorner", inputBg).CornerRadius = UDim.new(0, 6)
+local inputStroke = Instance.new("UIStroke", inputBg)
+inputStroke.Color = Color3.fromRGB(93, 108, 200)
+inputStroke.Transparency = 0.55
 
 local box = Instance.new("TextBox", inputBg)
 box.Size = UDim2.new(1, -12, 1, 0)
 box.Position = UDim2.new(0, 8, 0, 0)
 box.BackgroundTransparency = 1
-box.PlaceholderText = "اكتب رسالة واضغط Enter..."
+box.PlaceholderText = "اكتب رسالة…  /help للمساعدة"
 box.PlaceholderColor3 = Color3.fromRGB(180, 180, 180)
 box.Text = ""
 box.TextColor3 = Color3.new(1, 1, 1)
@@ -298,6 +367,9 @@ for i,c in ipairs(settingColors) do
         toggleBtn.BackgroundColor3 = c
         sendBtn.BackgroundColor3 = c
         settingsStroke.Color = c
+        frameStroke.Color = c
+        inputStroke.Color = c
+        toggleStroke.Color = c:Lerp(Color3.new(1, 1, 1), 0.45)
     end)
 end
 
@@ -343,8 +415,6 @@ local function refreshSettings()
     updateSettingsState()
 end
 
-local editButtonMode = false
-local editChatMode = false
 local dragTarget = nil
 local dragStart = nil
 local dragOrigin = nil
@@ -465,6 +535,9 @@ resetBtn.MouseButton1Click:Connect(function()
     toggleBtn.BackgroundColor3 = settings.color
     sendBtn.BackgroundColor3 = settings.color
     settingsStroke.Color = settings.color
+    frameStroke.Color = settings.color
+    inputStroke.Color = settings.color
+    toggleStroke.Color = settings.color:Lerp(Color3.new(1, 1, 1), 0.45)
     editButtonMode = false
     editChatMode = false
     stopDrag()
@@ -537,19 +610,76 @@ local function colorToHex(c)
         math.floor(c.B * 255))
 end
 
+local function escapeRichText(value)
+    return tostring(value)
+        :gsub("&", "&amp;")
+        :gsub("<", "&lt;")
+        :gsub(">", "&gt;")
+        :gsub('"', "&quot;")
+end
+
+local function setConnectionStatus(text, healthy)
+    if not connectionLabel or not connectionLabel.Parent then return end
+    connectionLabel.Text = text
+    connectionLabel.TextColor3 = healthy and Color3.fromRGB(133, 240, 174) or Color3.fromRGB(255, 184, 104)
+    connectionLabel.BackgroundColor3 = healthy and Color3.fromRGB(48, 61, 69) or Color3.fromRGB(78, 55, 38)
+end
+
+local function scrollToNewest()
+    if not settings.autoScroll then return end
+    task.defer(function()
+        if messages and messages.Parent then
+            messages.CanvasPosition = Vector2.new(0, messages.AbsoluteCanvasSize.Y)
+        end
+    end)
+end
+
+local function addSystemMessage(text)
+    local label = Instance.new("TextLabel", messages)
+    label.Size = UDim2.new(1, 0, 0, 22)
+    label.BackgroundColor3 = Color3.fromRGB(78, 88, 158)
+    label.BackgroundTransparency = 0.65
+    label.BorderSizePixel = 0
+    label.Text = "✦  " .. escapeRichText(text)
+    label.TextColor3 = Color3.fromRGB(210, 215, 255)
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 10
+    label.TextXAlignment = Enum.TextXAlignment.Center
+    Instance.new("UICorner", label).CornerRadius = UDim.new(0, 6)
+    label.TextTransparency = 1
+    TweenService:Create(label, TweenInfo.new(0.18), {TextTransparency = 0}):Play()
+    scrollToNewest()
+end
+
 
 local function trimVisibleMessages()
     -- visibleMessages controls how many messages are comfortably visible.
     -- It NEVER deletes old messages; the ScrollingFrame keeps them available.
 end
 
-local function addMessage(user, msg)
+local function addMessage(user, msg, createdAt)
     local color = getColor(user)
     local hex = colorToHex(color)
     local displayName = user == LocalPlayer.Name and ("(" .. user .. "  )") or ("(" .. user .. ")")
 
-    local label = Instance.new("TextLabel", messages)
-    label.Size = UDim2.new(1, 0, 0, 0)
+    local card = Instance.new("Frame", messages)
+    card.Size = UDim2.new(1, 0, 0, 0)
+    card.AutomaticSize = Enum.AutomaticSize.Y
+    card.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    card.BackgroundTransparency = 0.94
+    card.BorderSizePixel = 0
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 7)
+
+    local accent = Instance.new("Frame", card)
+    accent.Size = UDim2.new(0, 3, 1, -8)
+    accent.Position = UDim2.new(1, -6, 0, 4)
+    accent.BackgroundColor3 = color
+    accent.BorderSizePixel = 0
+    Instance.new("UICorner", accent).CornerRadius = UDim.new(1, 0)
+
+    local label = Instance.new("TextLabel", card)
+    label.Size = UDim2.new(1, -16, 0, 0)
+    label.Position = UDim2.new(0, 5, 0, 4)
     label.AutomaticSize = Enum.AutomaticSize.Y
     label.BackgroundTransparency = 1
     label.RichText = true
@@ -558,14 +688,15 @@ local function addMessage(user, msg)
     label.TextSize = 12
     label.TextWrapped = true
     label.TextXAlignment = Enum.TextXAlignment.Right
-    label.Text = string.format('%s  <font color="%s"><b>%s</b></font>', msg, hex, displayName)
+    local clock = type(createdAt) == "string" and createdAt:match("T(%d%d:%d%d)") or nil
+    local meta = clock and ("  <font color=\"#8991A9\">" .. clock .. "</font>") or ""
+    label.Text = string.format('%s  <font color="%s"><b>%s</b></font>%s', escapeRichText(msg), hex, escapeRichText(displayName), meta)
 
     label.TextTransparency = 1
     TweenService:Create(label, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
 
     trimVisibleMessages()
-    task.wait(0.01)
-    messages.CanvasPosition = Vector2.new(0, messages.AbsoluteCanvasSize.Y)
+    scrollToNewest()
 end
 
 local playerBubbles = {}
@@ -723,13 +854,47 @@ for _, plr in ipairs(Players:GetPlayers()) do
     setupPlayer(plr)
 end
 
+local lastSendAt = 0
+local function handleCommand(text)
+    local command = text:lower()
+    if command == "/help" then
+        addSystemMessage("الأوامر: /help  /clear  /mute  /scroll  /version")
+        return true
+    elseif command == "/clear" then
+        for _, child in ipairs(messages:GetChildren()) do
+            if child:IsA("GuiObject") then child:Destroy() end
+        end
+        addSystemMessage("تم تنظيف العرض المحلي فقط — الرسائل لم تُحذف من القاعدة")
+        return true
+    elseif command == "/mute" then
+        settings.muted = not settings.muted
+        addSystemMessage(settings.muted and "تم كتم أصوات التنبيه" or "تم تشغيل أصوات التنبيه")
+        return true
+    elseif command == "/scroll" then
+        settings.autoScroll = not settings.autoScroll
+        addSystemMessage(settings.autoScroll and "التمرير التلقائي مفعّل" or "التمرير التلقائي متوقف")
+        return true
+    elseif command == "/version" then
+        addSystemMessage(APP.name .. " v" .. APP.version .. " • واجهة محلية آمنة")
+        return true
+    end
+    return false
+end
+
 local function sendMessage(text)
-    if text == "" then return end
+    text = tostring(text):gsub("^%s*(.-)%s*$", "%1")
+    if text == "" or handleCommand(text) then return end
+    if os.clock() - lastSendAt < APP.sendCooldown then
+        addSystemMessage("انتظر لحظة قبل إرسال رسالة جديدة")
+        return
+    end
+    lastSendAt = os.clock()
+    setConnectionStatus("… إرسال", true)
     showBubbleAbovePlayer(LocalPlayer.Name, text)
     local data = {username = LocalPlayer.Name, message = text}
     task.spawn(function()
-        pcall(function()
-            request({
+        local ok, response = pcall(function()
+            return request({
                 Url = PROJECT_URL .. "/rest/v1/chat_messages",
                 Method = "POST",
                 Headers = {
@@ -741,6 +906,12 @@ local function sendMessage(text)
                 Body = HttpService:JSONEncode(data)
             })
         end)
+        if ok and response and response.Success ~= false then
+            setConnectionStatus("● متصل", true)
+        else
+            setConnectionStatus("! أعد المحاولة", false)
+            addSystemMessage("تعذر إرسال الرسالة — تحقق من الاتصال")
+        end
     end)
 end
 
@@ -773,9 +944,16 @@ local messageSound = Instance.new("Sound", gui)
 messageSound.SoundId = "rbxassetid://6026984224"
 messageSound.Volume = 0.65
 
+local unreadCount = 0
 local function notifyNewMessage()
-    pcall(function() messageSound:Play() end)
+    if not settings.muted then
+        pcall(function() messageSound:Play() end)
+    end
     if isOpen then return end
+
+    unreadCount = math.min(unreadCount + 1, 99)
+    unreadBadge.Text = unreadCount > 9 and "9+" or tostring(unreadCount)
+    unreadBadge.Visible = true
 
     task.spawn(function()
         for _ = 1, 4 do
@@ -792,49 +970,51 @@ local shownIds = {}
 local firstLoad = true
 
 task.spawn(function()
-    while task.wait(0.05) do
-        pcall(function()
-            local response = request({
+    while task.wait(APP.pollInterval) do
+        local ok, response = pcall(function()
+            return request({
                 Url = PROJECT_URL .. "/rest/v1/chat_messages?select=*&order=id.asc&limit=20",
                 Method = "GET",
                 Headers = {["apikey"] = ANON_KEY, ["Authorization"] = "Bearer " .. ANON_KEY}
             })
-            if response and response.Body then
-                local decoded = HttpService:JSONDecode(response.Body)
-                if type(decoded) == "table" then
-                    local newIncoming = false
-                    for _, v in ipairs(decoded) do
-                        if v.id and not shownIds[v.id] then
-                            shownIds[v.id] = true
-                            addMessage(v.username, v.message)
-                            if not firstLoad and v.username ~= LocalPlayer.Name then
-                                showBubbleAbovePlayer(v.username, v.message)
-                                newIncoming = true
-                            end
+        end)
+        if ok and response and response.Body then
+            local decodedOk, decoded = pcall(function() return HttpService:JSONDecode(response.Body) end)
+            if decodedOk and type(decoded) == "table" then
+                setConnectionStatus("● متصل", true)
+                local newIncoming = false
+                for _, v in ipairs(decoded) do
+                    if v.id and not shownIds[v.id] then
+                        shownIds[v.id] = true
+                        addMessage(v.username, v.message, v.created_at)
+                        if not firstLoad and v.username ~= LocalPlayer.Name then
+                            showBubbleAbovePlayer(v.username, v.message)
+                            newIncoming = true
                         end
                     end
-                    if newIncoming then
-                        notifyNewMessage()
-                    end
-                    firstLoad = false
                 end
+                if newIncoming then notifyNewMessage() end
+                firstLoad = false
             end
-        end)
+        else
+            setConnectionStatus("! غير متصل", false)
+        end
     end
 end)
 
-local isOpen = false
 toggleBtn.Activated:Connect(function()
     if editButtonMode then return end
     isOpen = not isOpen
     if isOpen then
+        unreadCount = 0
+        unreadBadge.Visible = false
         frame.Visible = true
         frame.Size = UDim2.new(0, 0, 0, 0)
         TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Size = UDim2.new(settings.width,0,settings.height,0)}):Play()
         toggleBtn.Text = "✕"
     else
         TweenService:Create(frame, TweenInfo.new(0.15), {Size = UDim2.new(0, 0, 0, 0)}):Play()
-        toggleBtn.Text = "💬 Chat"
+        toggleBtn.Text = "💬  CHAT"
         task.wait(0.15)
         frame.Visible = false
     end
@@ -850,6 +1030,8 @@ UserInputService.InputBegan:Connect(function(input, processed)
             frame.Size = UDim2.new(settings.width,0,settings.height,0)
             toggleBtn.Text = "✕"
         end
+        unreadCount = 0
+        unreadBadge.Visible = false
         task.defer(function()
             pcall(function()
                 box:CaptureFocus()
@@ -864,8 +1046,8 @@ refreshSettings()
 print("✅ Pro Chat CHATTTT — original v11 network + settings, no save")
 
 box:GetPropertyChangedSignal("Text"):Connect(function()
-    if #box.Text > 240 then box.Text = string.sub(box.Text,1,240) end
+    if #box.Text > APP.maxMessageLength then box.Text = string.sub(box.Text,1,APP.maxMessageLength) end
     if charCounter and charCounter.Parent then
-        charCounter.Text = tostring(#box.Text).."/240"
+        charCounter.Text = tostring(#box.Text).."/"..tostring(APP.maxMessageLength)
     end
 end)
