@@ -34,6 +34,10 @@ local settings = {
     color = Color3.fromRGB(88, 101, 242),
     muted = false,
     autoScroll = true,
+    messageFontSize = 12,
+    highContrast = false,
+    compactMode = false,
+    reduceMotion = false,
 }
 
 local APP = {
@@ -806,6 +810,21 @@ local function applySearchFilter(query)
     if searchInfo then searchInfo.Text = tostring(matches) .. " نتيجة" end
 end
 
+local function applyAccessibilitySettings()
+    layout.Padding = UDim.new(0, settings.compactMode and 0 or 2)
+    for _, record in ipairs(messageRecords) do
+        if record.card and record.card.Parent then
+            record.card.BackgroundTransparency = settings.highContrast and 0.78 or 0.94
+        end
+        if record.label and record.label.Parent then
+            record.label.TextSize = settings.messageFontSize
+        end
+    end
+    frame.BackgroundTransparency = settings.highContrast and 0 or 0.08
+    inputBg.BackgroundTransparency = settings.highContrast and 0 or 0.12
+    showToast("حجم الخط " .. tostring(settings.messageFontSize) .. " • " .. (settings.compactMode and "وضع مضغوط" or "وضع مريح"))
+end
+
 local function clearLocalHistory()
     for _, record in ipairs(messageRecords) do
         if record.card and record.card.Parent then record.card:Destroy() end
@@ -854,7 +873,7 @@ local function addMessage(user, msg, createdAt)
     card.Size = UDim2.new(1, 0, 0, 0)
     card.AutomaticSize = Enum.AutomaticSize.Y
     card.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    card.BackgroundTransparency = 0.94
+    card.BackgroundTransparency = settings.highContrast and 0.78 or 0.94
     card.BorderSizePixel = 0
     Instance.new("UICorner", card).CornerRadius = UDim.new(0, 7)
 
@@ -892,7 +911,7 @@ local function addMessage(user, msg, createdAt)
     label.RichText = true
     label.TextColor3 = Color3.fromRGB(220, 220, 220)
     label.Font = Enum.Font.GothamMedium
-    label.TextSize = 12
+    label.TextSize = settings.messageFontSize
     label.TextWrapped = true
     label.TextXAlignment = Enum.TextXAlignment.Right
     local clock = type(createdAt) == "string" and createdAt:match("T(%d%d:%d%d)") or nil
@@ -900,9 +919,13 @@ local function addMessage(user, msg, createdAt)
     label.Text = string.format('%s  <font color="%s"><b>%s</b></font>%s', escapeRichText(msg), hex, escapeRichText(displayName), meta)
 
     label.TextTransparency = 1
-    TweenService:Create(label, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
+    if settings.reduceMotion then
+        label.TextTransparency = 0
+    else
+        TweenService:Create(label, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
+    end
 
-    table.insert(messageRecords, {card = card, user = tostring(user), message = tostring(msg)})
+    table.insert(messageRecords, {card = card, label = label, user = tostring(user), message = tostring(msg)})
     if #messageRecords > APP.historyLimit then
         local oldest = table.remove(messageRecords, 1)
         if oldest.card and oldest.card.Parent then oldest.card:Destroy() end
@@ -1084,6 +1107,26 @@ local function handleCommand(text)
     elseif command == "/scroll" then
         settings.autoScroll = not settings.autoScroll
         addSystemMessage(settings.autoScroll and "التمرير التلقائي مفعّل" or "التمرير التلقائي متوقف")
+        return true
+    elseif command == "/font+" then
+        settings.messageFontSize = math.min(18, settings.messageFontSize + 1)
+        applyAccessibilitySettings()
+        return true
+    elseif command == "/font-" then
+        settings.messageFontSize = math.max(10, settings.messageFontSize - 1)
+        applyAccessibilitySettings()
+        return true
+    elseif command == "/contrast" then
+        settings.highContrast = not settings.highContrast
+        applyAccessibilitySettings()
+        return true
+    elseif command == "/compact" then
+        settings.compactMode = not settings.compactMode
+        applyAccessibilitySettings()
+        return true
+    elseif command == "/motion" then
+        settings.reduceMotion = not settings.reduceMotion
+        showToast(settings.reduceMotion and "تم تقليل الحركة" or "تم تشغيل الحركة")
         return true
     elseif command == "/version" then
         addSystemMessage(APP.name .. " v" .. APP.version .. " • واجهة محلية آمنة")
@@ -1337,6 +1380,18 @@ UserInputService.InputBegan:Connect(function(input, processed)
         settings.autoScroll = true
         syncToolState()
         scrollToNewest()
+    elseif ctrlDown and input.KeyCode == Enum.KeyCode.Equals then
+        settings.messageFontSize = math.min(18, settings.messageFontSize + 1)
+        applyAccessibilitySettings()
+    elseif ctrlDown and input.KeyCode == Enum.KeyCode.Minus then
+        settings.messageFontSize = math.max(10, settings.messageFontSize - 1)
+        applyAccessibilitySettings()
+    elseif ctrlDown and input.KeyCode == Enum.KeyCode.H then
+        settings.highContrast = not settings.highContrast
+        applyAccessibilitySettings()
+    elseif ctrlDown and input.KeyCode == Enum.KeyCode.R then
+        settings.compactMode = not settings.compactMode
+        applyAccessibilitySettings()
     end
 end)
 
