@@ -49,6 +49,13 @@ local APP = {
     historyLimit = 20,
 }
 
+local sessionStats = {
+    sent = 0,
+    received = 0,
+    startedAt = os.time(),
+    lastLatencyMs = 0,
+}
+
 local MIN_MESSAGES, MAX_MESSAGES = 2, 20
 local MIN_W, MAX_W = 0.30, 0.80
 local MIN_H, MAX_H = 0.24, 0.78
@@ -242,6 +249,7 @@ local muteBtn = toolButton("🔊", 2)
 local scrollBtn = toolButton("↓", 3)
 local clearBtn = toolButton("⌫", 4)
 local emojiBtn = toolButton("😊", 5)
+local statsBtn = toolButton("▥", 6)
 
 local playerCount = Instance.new("TextButton", toolBar)
 playerCount.Size = UDim2.new(0, 110, 1, 0)
@@ -963,6 +971,7 @@ local function addMessage(user, msg, createdAt)
 
     local record = {card = card, label = label, user = tostring(user), message = tostring(msg), saved = false}
     table.insert(messageRecords, record)
+    sessionStats.received = sessionStats.received + 1
     saveButton.Activated:Connect(function()
         saveMessage(record)
         saveButton.Text = record.saved and "★" or "☆"
@@ -1184,6 +1193,10 @@ local function handleCommand(text)
             end
         end
         return true
+    elseif command == "/stats" then
+        local minutes = math.max(1, math.floor((os.time() - sessionStats.startedAt) / 60))
+        addSystemMessage(string.format("الجلسة: %d دقيقة • أرسلت %d • استلمت %d • آخر اتصال %dms", minutes, sessionStats.sent, sessionStats.received, sessionStats.lastLatencyMs))
+        return true
     elseif command == "/version" then
         addSystemMessage(APP.name .. " v" .. APP.version .. " • واجهة محلية آمنة")
         return true
@@ -1244,6 +1257,11 @@ emojiBtn.Activated:Connect(function()
     box:CaptureFocus()
 end)
 
+statsBtn.Activated:Connect(function()
+    local minutes = math.max(1, math.floor((os.time() - sessionStats.startedAt) / 60))
+    showToast(string.format("%d د • ↑%d ↓%d • %dms", minutes, sessionStats.sent, sessionStats.received, sessionStats.lastLatencyMs), Color3.fromRGB(47, 61, 99))
+end)
+
 searchBox:GetPropertyChangedSignal("Text"):Connect(function()
     applySearchFilter(searchBox.Text)
 end)
@@ -1261,6 +1279,7 @@ local function sendMessage(text)
         return
     end
     lastSendAt = os.clock()
+    local requestStartedAt = os.clock()
     setConnectionStatus("… إرسال", true)
     showBubbleAbovePlayer(LocalPlayer.Name, text)
     local data = {username = LocalPlayer.Name, message = text}
@@ -1279,6 +1298,8 @@ local function sendMessage(text)
             })
         end)
         if ok and response and response.Success ~= false then
+            sessionStats.sent = sessionStats.sent + 1
+            sessionStats.lastLatencyMs = math.floor((os.clock() - requestStartedAt) * 1000)
             setConnectionStatus("● متصل", true)
         else
             setConnectionStatus("! أعد المحاولة", false)
