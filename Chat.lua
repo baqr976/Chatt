@@ -175,7 +175,7 @@ headerLine.BackgroundTransparency = 0.68
 headerLine.BorderSizePixel = 0
 
 local messages = Instance.new("ScrollingFrame", frame)
-messages.Size = UDim2.new(1, -8, 1, -72)
+messages.Size = UDim2.new(1, -8, 1, -102)
 messages.Position = UDim2.new(0, 4, 0, 40)
 messages.CanvasSize = UDim2.new(0, 0, 0, 0)
 messages.ScrollBarThickness = 2
@@ -192,6 +192,77 @@ pad.PaddingTop = UDim.new(0, 2)
 pad.PaddingBottom = UDim.new(0, 2)
 pad.PaddingLeft = UDim.new(0, 4)
 pad.PaddingRight = UDim.new(0, 4)
+
+local toolBar = Instance.new("Frame", frame)
+toolBar.Size = UDim2.new(1, -8, 0, 24)
+toolBar.Position = UDim2.new(0, 4, 1, -58)
+toolBar.BackgroundTransparency = 1
+toolBar.BorderSizePixel = 0
+
+local function toolButton(text, order)
+    local button = Instance.new("TextButton", toolBar)
+    button.Size = UDim2.new(0, 42, 1, 0)
+    button.Position = UDim2.new(1, -(order * 46), 0, 0)
+    button.BackgroundColor3 = Color3.fromRGB(43, 47, 69)
+    button.BackgroundTransparency = 0.16
+    button.BorderSizePixel = 0
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(225, 228, 255)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 11
+    button.AutoButtonColor = false
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 6)
+    return button
+end
+
+local searchBtn = toolButton("⌕", 1)
+local muteBtn = toolButton("🔊", 2)
+local scrollBtn = toolButton("↓", 3)
+local clearBtn = toolButton("⌫", 4)
+local emojiBtn = toolButton("😊", 5)
+
+local playerCount = Instance.new("TextLabel", toolBar)
+playerCount.Size = UDim2.new(0, 110, 1, 0)
+playerCount.Position = UDim2.new(0, 2, 0, 0)
+playerCount.BackgroundTransparency = 1
+playerCount.Text = "0 لاعب في السيرفر"
+playerCount.TextColor3 = Color3.fromRGB(163, 172, 203)
+playerCount.Font = Enum.Font.GothamMedium
+playerCount.TextSize = 10
+playerCount.TextXAlignment = Enum.TextXAlignment.Left
+
+local searchPanel = Instance.new("Frame", frame)
+searchPanel.Size = UDim2.new(1, -16, 0, 28)
+searchPanel.Position = UDim2.new(0, 8, 0, 42)
+searchPanel.BackgroundColor3 = Color3.fromRGB(36, 40, 59)
+searchPanel.BackgroundTransparency = 0.04
+searchPanel.BorderSizePixel = 0
+searchPanel.Visible = false
+searchPanel.ZIndex = 30
+Instance.new("UICorner", searchPanel).CornerRadius = UDim.new(0, 7)
+
+local searchBox = Instance.new("TextBox", searchPanel)
+searchBox.Size = UDim2.new(1, -65, 1, 0)
+searchBox.Position = UDim2.new(0, 8, 0, 0)
+searchBox.BackgroundTransparency = 1
+searchBox.PlaceholderText = "ابحث في الرسائل المحمّلة…"
+searchBox.PlaceholderColor3 = Color3.fromRGB(160, 168, 196)
+searchBox.TextColor3 = Color3.new(1, 1, 1)
+searchBox.Font = Enum.Font.Gotham
+searchBox.TextSize = 11
+searchBox.TextXAlignment = Enum.TextXAlignment.Right
+searchBox.ClearTextOnFocus = false
+searchBox.ZIndex = 31
+
+local searchInfo = Instance.new("TextLabel", searchPanel)
+searchInfo.Size = UDim2.new(0, 54, 1, 0)
+searchInfo.Position = UDim2.new(1, -58, 0, 0)
+searchInfo.BackgroundTransparency = 1
+searchInfo.Text = "0 نتيجة"
+searchInfo.TextColor3 = Color3.fromRGB(161, 177, 255)
+searchInfo.Font = Enum.Font.GothamBold
+searchInfo.TextSize = 9
+searchInfo.ZIndex = 31
 
 local inputBg = Instance.new("Frame", frame)
 inputBg.Size = UDim2.new(1, -8, 0, 26)
@@ -651,6 +722,26 @@ local function addSystemMessage(text)
     scrollToNewest()
 end
 
+local messageRecords = {}
+local function applySearchFilter(query)
+    query = tostring(query or ""):lower()
+    local matches = 0
+    for _, record in ipairs(messageRecords) do
+        local matched = query == "" or record.user:lower():find(query, 1, true) or record.message:lower():find(query, 1, true)
+        record.card.Visible = matched
+        if matched then matches = matches + 1 end
+    end
+    if searchInfo then searchInfo.Text = tostring(matches) .. " نتيجة" end
+end
+
+local function clearLocalHistory()
+    for _, record in ipairs(messageRecords) do
+        if record.card and record.card.Parent then record.card:Destroy() end
+    end
+    table.clear(messageRecords)
+    addSystemMessage("تم تنظيف العرض المحلي فقط — الرسائل لم تُحذف من القاعدة")
+end
+
 
 local function trimVisibleMessages()
     -- visibleMessages controls how many messages are comfortably visible.
@@ -694,6 +785,13 @@ local function addMessage(user, msg, createdAt)
 
     label.TextTransparency = 1
     TweenService:Create(label, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
+
+    table.insert(messageRecords, {card = card, user = tostring(user), message = tostring(msg)})
+    if #messageRecords > APP.historyLimit then
+        local oldest = table.remove(messageRecords, 1)
+        if oldest.card and oldest.card.Parent then oldest.card:Destroy() end
+    end
+    applySearchFilter(searchBox and searchBox.Text or "")
 
     trimVisibleMessages()
     scrollToNewest()
@@ -858,13 +956,10 @@ local lastSendAt = 0
 local function handleCommand(text)
     local command = text:lower()
     if command == "/help" then
-        addSystemMessage("الأوامر: /help  /clear  /mute  /scroll  /version")
+        addSystemMessage("الأوامر: /help  /clear  /mute  /scroll  /search  /version")
         return true
     elseif command == "/clear" then
-        for _, child in ipairs(messages:GetChildren()) do
-            if child:IsA("GuiObject") then child:Destroy() end
-        end
-        addSystemMessage("تم تنظيف العرض المحلي فقط — الرسائل لم تُحذف من القاعدة")
+        clearLocalHistory()
         return true
     elseif command == "/mute" then
         settings.muted = not settings.muted
@@ -877,9 +972,65 @@ local function handleCommand(text)
     elseif command == "/version" then
         addSystemMessage(APP.name .. " v" .. APP.version .. " • واجهة محلية آمنة")
         return true
+    elseif command == "/search" then
+        searchPanel.Visible = not searchPanel.Visible
+        if searchPanel.Visible then searchBox:CaptureFocus() end
+        return true
     end
     return false
 end
+
+local function updatePlayerCount()
+    local count = #Players:GetPlayers()
+    playerCount.Text = tostring(count) .. (count == 1 and " لاعب في السيرفر" or " لاعبين في السيرفر")
+end
+
+local function syncToolState()
+    muteBtn.Text = settings.muted and "🔇" or "🔊"
+    scrollBtn.Text = settings.autoScroll and "↓" or "↕"
+    muteBtn.BackgroundColor3 = settings.muted and Color3.fromRGB(103, 63, 70) or Color3.fromRGB(43, 47, 69)
+    scrollBtn.BackgroundColor3 = settings.autoScroll and settings.color or Color3.fromRGB(43, 47, 69)
+end
+
+searchBtn.Activated:Connect(function()
+    searchPanel.Visible = not searchPanel.Visible
+    if searchPanel.Visible then
+        searchBox:CaptureFocus()
+    else
+        searchBox.Text = ""
+        applySearchFilter("")
+    end
+end)
+
+muteBtn.Activated:Connect(function()
+    settings.muted = not settings.muted
+    syncToolState()
+    addSystemMessage(settings.muted and "تم كتم أصوات التنبيه" or "تم تشغيل أصوات التنبيه")
+end)
+
+scrollBtn.Activated:Connect(function()
+    settings.autoScroll = not settings.autoScroll
+    syncToolState()
+    if settings.autoScroll then scrollToNewest() end
+end)
+
+clearBtn.Activated:Connect(clearLocalHistory)
+
+emojiBtn.Activated:Connect(function()
+    local choices = {"😀", "🔥", "✨", "👍", "❤️", "🎮"}
+    local nextEmoji = choices[math.random(1, #choices)]
+    box.Text = box.Text .. nextEmoji
+    box:CaptureFocus()
+end)
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    applySearchFilter(searchBox.Text)
+end)
+
+Players.PlayerAdded:Connect(updatePlayerCount)
+Players.PlayerRemoving:Connect(updatePlayerCount)
+updatePlayerCount()
+syncToolState()
 
 local function sendMessage(text)
     text = tostring(text):gsub("^%s*(.-)%s*$", "%1")
@@ -1038,6 +1189,32 @@ UserInputService.InputBegan:Connect(function(input, processed)
                 box.CursorPosition = #box.Text + 1
             end)
         end)
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed or not isMouse then return end
+    local ctrlDown = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
+
+    if ctrlDown and input.KeyCode == Enum.KeyCode.F then
+        searchPanel.Visible = not searchPanel.Visible
+        if searchPanel.Visible then searchBox:CaptureFocus() end
+    elseif ctrlDown and input.KeyCode == Enum.KeyCode.M then
+        settings.muted = not settings.muted
+        syncToolState()
+    elseif ctrlDown and input.KeyCode == Enum.KeyCode.L then
+        clearLocalHistory()
+    elseif input.KeyCode == Enum.KeyCode.Escape then
+        if searchPanel.Visible then
+            searchPanel.Visible = false
+            searchBox.Text = ""
+        elseif isOpen then
+            toggleBtn:Activate()
+        end
+    elseif input.KeyCode == Enum.KeyCode.PageDown then
+        settings.autoScroll = true
+        syncToolState()
+        scrollToNewest()
     end
 end)
 
