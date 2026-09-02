@@ -799,6 +799,8 @@ local function addSystemMessage(text)
 end
 
 local messageRecords = {}
+local savedMessages = {}
+local sessionDraft = ""
 local function applySearchFilter(query)
     query = tostring(query or ""):lower()
     local matches = 0
@@ -831,6 +833,20 @@ local function clearLocalHistory()
     end
     table.clear(messageRecords)
     addSystemMessage("تم تنظيف العرض المحلي فقط — الرسائل لم تُحذف من القاعدة")
+end
+
+local function saveMessage(record)
+    if record.saved then
+        record.saved = false
+        for i, saved in ipairs(savedMessages) do
+            if saved == record then table.remove(savedMessages, i) break end
+        end
+        showToast("أُزيلت من المحفوظات")
+    else
+        record.saved = true
+        table.insert(savedMessages, record)
+        showToast("تم حفظ الرسالة محليًا", Color3.fromRGB(42, 86, 69))
+    end
 end
 
 local function refreshRoster()
@@ -903,6 +919,26 @@ local function addMessage(user, msg, createdAt)
         end
     end)
 
+    local saveButton = Instance.new("TextButton", card)
+    saveButton.Size = UDim2.new(0, 20, 0, 20)
+    saveButton.Position = UDim2.new(0, 23, 0, 2)
+    saveButton.BackgroundTransparency = 1
+    saveButton.Text = "☆"
+    saveButton.TextColor3 = Color3.fromRGB(244, 199, 90)
+    saveButton.Font = Enum.Font.GothamBold
+    saveButton.TextSize = 14
+    saveButton.ZIndex = 3
+
+    local replyButton = Instance.new("TextButton", card)
+    replyButton.Size = UDim2.new(0, 20, 0, 20)
+    replyButton.Position = UDim2.new(0, 44, 0, 2)
+    replyButton.BackgroundTransparency = 1
+    replyButton.Text = "↩"
+    replyButton.TextColor3 = Color3.fromRGB(172, 181, 222)
+    replyButton.Font = Enum.Font.GothamBold
+    replyButton.TextSize = 12
+    replyButton.ZIndex = 3
+
     local label = Instance.new("TextLabel", card)
     label.Size = UDim2.new(1, -16, 0, 0)
     label.Position = UDim2.new(0, 5, 0, 4)
@@ -925,7 +961,17 @@ local function addMessage(user, msg, createdAt)
         TweenService:Create(label, TweenInfo.new(0.15), {TextTransparency = 0}):Play()
     end
 
-    table.insert(messageRecords, {card = card, label = label, user = tostring(user), message = tostring(msg)})
+    local record = {card = card, label = label, user = tostring(user), message = tostring(msg), saved = false}
+    table.insert(messageRecords, record)
+    saveButton.Activated:Connect(function()
+        saveMessage(record)
+        saveButton.Text = record.saved and "★" or "☆"
+    end)
+    replyButton.Activated:Connect(function()
+        box.Text = "↪ @" .. tostring(user) .. " "
+        box:CaptureFocus()
+        showToast("رد على " .. tostring(user))
+    end)
     if #messageRecords > APP.historyLimit then
         local oldest = table.remove(messageRecords, 1)
         if oldest.card and oldest.card.Parent then oldest.card:Destroy() end
@@ -1127,6 +1173,16 @@ local function handleCommand(text)
     elseif command == "/motion" then
         settings.reduceMotion = not settings.reduceMotion
         showToast(settings.reduceMotion and "تم تقليل الحركة" or "تم تشغيل الحركة")
+        return true
+    elseif command == "/saved" then
+        if #savedMessages == 0 then
+            addSystemMessage("لا توجد رسائل محفوظة في هذه الجلسة")
+        else
+            addSystemMessage("المحفوظات: " .. tostring(#savedMessages) .. " رسالة — استخدم النجمة لإدارتها")
+            for _, saved in ipairs(savedMessages) do
+                addSystemMessage("★ " .. saved.user .. ": " .. saved.message)
+            end
+        end
         return true
     elseif command == "/version" then
         addSystemMessage(APP.name .. " v" .. APP.version .. " • واجهة محلية آمنة")
@@ -1404,4 +1460,5 @@ box:GetPropertyChangedSignal("Text"):Connect(function()
     if charCounter and charCounter.Parent then
         charCounter.Text = tostring(#box.Text).."/"..tostring(APP.maxMessageLength)
     end
+    sessionDraft = box.Text
 end)
