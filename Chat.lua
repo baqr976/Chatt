@@ -120,9 +120,9 @@ frameGradient.Color = ColorSequence.new({
 })
 frameGradient.Rotation = 90
 
-local toast = Instance.new("TextLabel", gui)
-toast.Size = UDim2.new(0, 260, 0, 32)
-toast.Position = UDim2.new(0.5, -130, 0, 18)
+local toast = Instance.new("TextLabel", frame)
+toast.Size = UDim2.new(1, -16, 0, 30)
+toast.Position = UDim2.new(0, 8, 1, -94)
 toast.BackgroundColor3 = Color3.fromRGB(31, 36, 56)
 toast.BackgroundTransparency = 1
 toast.BorderSizePixel = 0
@@ -131,6 +131,7 @@ toast.TextColor3 = Color3.fromRGB(238, 240, 255)
 toast.TextTransparency = 1
 toast.Font = Enum.Font.GothamBold
 toast.TextSize = 11
+toast.TextXAlignment = Enum.TextXAlignment.Center
 toast.Visible = false
 toast.ZIndex = 200
 Instance.new("UICorner", toast).CornerRadius = UDim.new(0, 8)
@@ -206,7 +207,7 @@ headerLine.BackgroundTransparency = 0.68
 headerLine.BorderSizePixel = 0
 
 local messages = Instance.new("ScrollingFrame", frame)
-messages.Size = UDim2.new(1, -8, 1, -102)
+messages.Size = UDim2.new(1, -8, 1, -136)
 messages.Position = UDim2.new(0, 4, 0, 40)
 messages.CanvasSize = UDim2.new(0, 0, 0, 0)
 messages.ScrollBarThickness = 2
@@ -1250,7 +1251,7 @@ local function applyResponsiveLayout()
         scrollBtn.Visible = false
         statsBtn.Visible = false
         refreshBtn.Visible = false
-        messages.Size = UDim2.new(1, -8, 1, -102)
+        messages.Size = UDim2.new(1, -8, 1, -136)
         rosterPanel.Position = UDim2.new(0, 8, 0, 42)
     else
         pcHint.Visible = true
@@ -1352,6 +1353,7 @@ local function sendMessage(text)
             sessionStats.sent = sessionStats.sent + 1
             sessionStats.lastLatencyMs = math.floor((os.clock() - requestStartedAt) * 1000)
             setConnectionStatus("● متصل", true)
+            showToast("✓ تم إرسال الرسالة", Color3.fromRGB(42, 86, 69))
         else
             setConnectionStatus("! أعد المحاولة", false)
             addSystemMessage("تعذر إرسال الرسالة — تحقق من الاتصال")
