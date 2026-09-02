@@ -42,11 +42,12 @@ local settings = {
 
 local APP = {
     name = "Pro Chat",
-    version = "12.0",
+    version = "13.0",
     maxMessageLength = 240,
     sendCooldown = 0.45,
     pollInterval = 1.25,
     historyLimit = 20,
+    retryInterval = 3,
 }
 
 local sessionStats = {
@@ -62,6 +63,7 @@ local MIN_H, MAX_H = 0.24, 0.78
 local editButtonMode = false
 local editChatMode = false
 local isOpen = false
+local refreshMessages
 
 
 local gui = Instance.new("ScreenGui")
@@ -250,6 +252,7 @@ local scrollBtn = toolButton("↓", 3)
 local clearBtn = toolButton("⌫", 4)
 local emojiBtn = toolButton("😊", 5)
 local statsBtn = toolButton("▥", 6)
+local refreshBtn = toolButton("↻", 7)
 
 local playerCount = Instance.new("TextButton", toolBar)
 playerCount.Size = UDim2.new(0, 110, 1, 0)
@@ -1221,6 +1224,50 @@ local function syncToolState()
     scrollBtn.BackgroundColor3 = settings.autoScroll and settings.color or Color3.fromRGB(43, 47, 69)
 end
 
+local function applyResponsiveLayout()
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+    local viewport = camera.ViewportSize
+    local mobileLayout = isTouch or viewport.X < 560
+    if mobileLayout then
+        settings.width = math.clamp(0.92, MIN_W, MAX_W)
+        settings.height = math.clamp(0.58, MIN_H, MAX_H)
+        settings.chatX, settings.chatY = 8, math.max(48, viewport.Y - math.floor(viewport.Y * settings.height) - 18)
+        frame.Size = UDim2.new(settings.width, 0, settings.height, 0)
+        frame.Position = UDim2.new(0, settings.chatX, 0, settings.chatY)
+        titleLabel.TextSize = 13
+        pcHint.Visible = false
+        connectionLabel.Size = UDim2.new(0, 64, 0, 16)
+        connectionLabel.Position = UDim2.new(1, -104, 1, 2)
+        playerCount.Size = UDim2.new(0, 82, 1, 0)
+        playerCount.TextSize = 9
+        for index, button in ipairs({searchBtn, muteBtn, clearBtn, emojiBtn}) do
+            button.Size = UDim2.new(0, 25, 1, 0)
+            button.Position = UDim2.new(1, -(index * 28), 0, 0)
+            button.TextSize = 10
+            button.Visible = true
+        end
+        scrollBtn.Visible = false
+        statsBtn.Visible = false
+        refreshBtn.Visible = false
+        messages.Size = UDim2.new(1, -8, 1, -102)
+        rosterPanel.Position = UDim2.new(0, 8, 0, 42)
+    else
+        pcHint.Visible = true
+        titleLabel.TextSize = 15
+        connectionLabel.Size = UDim2.new(0, 80, 0, 18)
+        connectionLabel.Position = UDim2.new(1, -120, 1, 1)
+        playerCount.Size = UDim2.new(0, 110, 1, 0)
+        playerCount.TextSize = 10
+        for index, button in ipairs({searchBtn, muteBtn, scrollBtn, clearBtn, emojiBtn, statsBtn, refreshBtn}) do
+            button.Size = UDim2.new(0, 42, 1, 0)
+            button.Position = UDim2.new(1, -(index * 46), 0, 0)
+            button.TextSize = 11
+            button.Visible = true
+        end
+    end
+end
+
 searchBtn.Activated:Connect(function()
     searchPanel.Visible = not searchPanel.Visible
     if searchPanel.Visible then
@@ -1260,6 +1307,10 @@ end)
 statsBtn.Activated:Connect(function()
     local minutes = math.max(1, math.floor((os.time() - sessionStats.startedAt) / 60))
     showToast(string.format("%d د • ↑%d ↓%d • %dms", minutes, sessionStats.sent, sessionStats.received, sessionStats.lastLatencyMs), Color3.fromRGB(47, 61, 99))
+end)
+
+refreshBtn.Activated:Connect(function()
+    task.spawn(function() refreshMessages(true) end)
 end)
 
 searchBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -1361,37 +1412,53 @@ end
 
 local shownIds = {}
 local firstLoad = true
+local isRefreshing = false
+refreshMessages = function(manual)
+    if isRefreshing then return end
+    isRefreshing = true
+    if manual then setConnectionStatus("… تحديث", true) end
+    local ok, response = pcall(function()
+        return request({
+            Url = PROJECT_URL .. "/rest/v1/chat_messages?select=id,username,message,created_at&order=created_at.asc,id.asc&limit=" .. tostring(APP.historyLimit),
+            Method = "GET",
+            Headers = { ["apikey"] = ANON_KEY, ["Authorization"] = "Bearer " .. ANON_KEY }
+        })
+    end)
+    if not ok or not response or not response.Body or response.Success == false then
+        setConnectionStatus("! غير متصل", false)
+        if manual then showToast("فشل التحديث — تحقق من الإنترنت", Color3.fromRGB(95, 58, 61)) end
+        isRefreshing = false
+        return
+    end
+    local decodedOk, decoded = pcall(function() return HttpService:JSONDecode(response.Body) end)
+    if not decodedOk or type(decoded) ~= "table" then
+        setConnectionStatus("! بيانات غير صالحة", false)
+        if manual then showToast("رد Supabase غير صالح", Color3.fromRGB(95, 58, 61)) end
+        isRefreshing = false
+        return
+    end
+    local newIncoming = false
+    for _, v in ipairs(decoded) do
+        if v.id and v.username and v.message and not shownIds[v.id] then
+            shownIds[v.id] = true
+            addMessage(v.username, v.message, v.created_at)
+            if not firstLoad and v.username ~= LocalPlayer.Name then
+                showBubbleAbovePlayer(v.username, v.message)
+                newIncoming = true
+            end
+        end
+    end
+    if newIncoming then notifyNewMessage() end
+    firstLoad = false
+    setConnectionStatus("● متصل", true)
+    if manual then showToast("تم تحديث الرسائل", Color3.fromRGB(42, 86, 69)) end
+    isRefreshing = false
+end
 
 task.spawn(function()
+    refreshMessages(false)
     while task.wait(APP.pollInterval) do
-        local ok, response = pcall(function()
-            return request({
-                Url = PROJECT_URL .. "/rest/v1/chat_messages?select=*&order=id.asc&limit=20",
-                Method = "GET",
-                Headers = {["apikey"] = ANON_KEY, ["Authorization"] = "Bearer " .. ANON_KEY}
-            })
-        end)
-        if ok and response and response.Body then
-            local decodedOk, decoded = pcall(function() return HttpService:JSONDecode(response.Body) end)
-            if decodedOk and type(decoded) == "table" then
-                setConnectionStatus("● متصل", true)
-                local newIncoming = false
-                for _, v in ipairs(decoded) do
-                    if v.id and not shownIds[v.id] then
-                        shownIds[v.id] = true
-                        addMessage(v.username, v.message, v.created_at)
-                        if not firstLoad and v.username ~= LocalPlayer.Name then
-                            showBubbleAbovePlayer(v.username, v.message)
-                            newIncoming = true
-                        end
-                    end
-                end
-                if newIncoming then notifyNewMessage() end
-                firstLoad = false
-            end
-        else
-            setConnectionStatus("! غير متصل", false)
-        end
+        refreshMessages(false)
     end
 end)
 
@@ -1473,8 +1540,12 @@ UserInputService.InputBegan:Connect(function(input, processed)
 end)
 
 refreshSettings()
+applyResponsiveLayout()
+if workspace.CurrentCamera then
+    workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(applyResponsiveLayout)
+end
 
-print("✅ Pro Chat CHATTTT — original v11 network + settings, no save")
+print("✅ Pro Chat v13 — resilient sync + responsive mobile layout")
 
 box:GetPropertyChangedSignal("Text"):Connect(function()
     if #box.Text > APP.maxMessageLength then box.Text = string.sub(box.Text,1,APP.maxMessageLength) end
