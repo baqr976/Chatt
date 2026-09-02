@@ -107,6 +107,24 @@ frameGradient.Color = ColorSequence.new({
 })
 frameGradient.Rotation = 90
 
+local toast = Instance.new("TextLabel", gui)
+toast.Size = UDim2.new(0, 260, 0, 32)
+toast.Position = UDim2.new(0.5, -130, 0, 18)
+toast.BackgroundColor3 = Color3.fromRGB(31, 36, 56)
+toast.BackgroundTransparency = 1
+toast.BorderSizePixel = 0
+toast.Text = ""
+toast.TextColor3 = Color3.fromRGB(238, 240, 255)
+toast.TextTransparency = 1
+toast.Font = Enum.Font.GothamBold
+toast.TextSize = 11
+toast.Visible = false
+toast.ZIndex = 200
+Instance.new("UICorner", toast).CornerRadius = UDim.new(0, 8)
+local toastStroke = Instance.new("UIStroke", toast)
+toastStroke.Color = settings.color
+toastStroke.Transparency = 1
+
 
 local header = Instance.new("Frame", frame)
 header.Size = UDim2.new(1, -8, 0, 32)
@@ -221,7 +239,7 @@ local scrollBtn = toolButton("↓", 3)
 local clearBtn = toolButton("⌫", 4)
 local emojiBtn = toolButton("😊", 5)
 
-local playerCount = Instance.new("TextLabel", toolBar)
+local playerCount = Instance.new("TextButton", toolBar)
 playerCount.Size = UDim2.new(0, 110, 1, 0)
 playerCount.Position = UDim2.new(0, 2, 0, 0)
 playerCount.BackgroundTransparency = 1
@@ -230,6 +248,7 @@ playerCount.TextColor3 = Color3.fromRGB(163, 172, 203)
 playerCount.Font = Enum.Font.GothamMedium
 playerCount.TextSize = 10
 playerCount.TextXAlignment = Enum.TextXAlignment.Left
+playerCount.AutoButtonColor = false
 
 local searchPanel = Instance.new("Frame", frame)
 searchPanel.Size = UDim2.new(1, -16, 0, 28)
@@ -263,6 +282,41 @@ searchInfo.TextColor3 = Color3.fromRGB(161, 177, 255)
 searchInfo.Font = Enum.Font.GothamBold
 searchInfo.TextSize = 9
 searchInfo.ZIndex = 31
+
+local rosterPanel = Instance.new("Frame", frame)
+rosterPanel.Size = UDim2.new(0, 178, 0, 170)
+rosterPanel.Position = UDim2.new(0, 8, 0, 42)
+rosterPanel.BackgroundColor3 = Color3.fromRGB(29, 33, 50)
+rosterPanel.BackgroundTransparency = 0.04
+rosterPanel.BorderSizePixel = 0
+rosterPanel.Visible = false
+rosterPanel.ZIndex = 40
+Instance.new("UICorner", rosterPanel).CornerRadius = UDim.new(0, 8)
+local rosterStroke = Instance.new("UIStroke", rosterPanel)
+rosterStroke.Color = settings.color
+rosterStroke.Transparency = 0.35
+
+local rosterTitle = Instance.new("TextLabel", rosterPanel)
+rosterTitle.Size = UDim2.new(1, -12, 0, 26)
+rosterTitle.Position = UDim2.new(0, 6, 0, 2)
+rosterTitle.BackgroundTransparency = 1
+rosterTitle.Text = "لاعبو السيرفر"
+rosterTitle.TextColor3 = Color3.fromRGB(240, 242, 255)
+rosterTitle.Font = Enum.Font.GothamBold
+rosterTitle.TextSize = 12
+rosterTitle.TextXAlignment = Enum.TextXAlignment.Right
+rosterTitle.ZIndex = 41
+
+local rosterList = Instance.new("ScrollingFrame", rosterPanel)
+rosterList.Size = UDim2.new(1, -10, 1, -34)
+rosterList.Position = UDim2.new(0, 5, 0, 30)
+rosterList.BackgroundTransparency = 1
+rosterList.BorderSizePixel = 0
+rosterList.ScrollBarThickness = 2
+rosterList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+rosterList.ZIndex = 41
+local rosterLayout = Instance.new("UIListLayout", rosterList)
+rosterLayout.Padding = UDim.new(0, 3)
 
 local inputBg = Instance.new("Frame", frame)
 inputBg.Size = UDim2.new(1, -8, 0, 26)
@@ -696,6 +750,24 @@ local function setConnectionStatus(text, healthy)
     connectionLabel.BackgroundColor3 = healthy and Color3.fromRGB(48, 61, 69) or Color3.fromRGB(78, 55, 38)
 end
 
+local toastNonce = 0
+local function showToast(text, color)
+    toastNonce = toastNonce + 1
+    local token = toastNonce
+    toast.Text = tostring(text)
+    toast.BackgroundColor3 = color or Color3.fromRGB(31, 36, 56)
+    toast.Visible = true
+    TweenService:Create(toast, TweenInfo.new(0.16), {BackgroundTransparency = 0.04, TextTransparency = 0}):Play()
+    TweenService:Create(toastStroke, TweenInfo.new(0.16), {Transparency = 0.3}):Play()
+    task.delay(2.2, function()
+        if token ~= toastNonce or not toast.Parent then return end
+        TweenService:Create(toast, TweenInfo.new(0.18), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+        TweenService:Create(toastStroke, TweenInfo.new(0.18), {Transparency = 1}):Play()
+        task.wait(0.2)
+        if token == toastNonce then toast.Visible = false end
+    end)
+end
+
 local function scrollToNewest()
     if not settings.autoScroll then return end
     task.defer(function()
@@ -742,6 +814,31 @@ local function clearLocalHistory()
     addSystemMessage("تم تنظيف العرض المحلي فقط — الرسائل لم تُحذف من القاعدة")
 end
 
+local function refreshRoster()
+    for _, child in ipairs(rosterList:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    for _, player in ipairs(Players:GetPlayers()) do
+        local row = Instance.new("TextButton", rosterList)
+        row.Size = UDim2.new(1, 0, 0, 25)
+        row.BackgroundColor3 = player == LocalPlayer and settings.color or Color3.fromRGB(46, 50, 72)
+        row.BackgroundTransparency = player == LocalPlayer and 0.2 or 0.38
+        row.BorderSizePixel = 0
+        row.Text = (player == LocalPlayer and "أنت • " or "") .. player.Name
+        row.TextColor3 = Color3.new(1, 1, 1)
+        row.Font = Enum.Font.GothamMedium
+        row.TextSize = 10
+        row.TextXAlignment = Enum.TextXAlignment.Right
+        row.ZIndex = 42
+        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 5)
+        row.Activated:Connect(function()
+            box.Text = "@" .. player.Name .. " "
+            box:CaptureFocus()
+            rosterPanel.Visible = false
+        end)
+    end
+end
+
 
 local function trimVisibleMessages()
     -- visibleMessages controls how many messages are comfortably visible.
@@ -767,6 +864,25 @@ local function addMessage(user, msg, createdAt)
     accent.BackgroundColor3 = color
     accent.BorderSizePixel = 0
     Instance.new("UICorner", accent).CornerRadius = UDim.new(1, 0)
+
+    local copyButton = Instance.new("TextButton", card)
+    copyButton.Size = UDim2.new(0, 20, 0, 20)
+    copyButton.Position = UDim2.new(0, 2, 0, 2)
+    copyButton.BackgroundTransparency = 1
+    copyButton.Text = "⧉"
+    copyButton.TextColor3 = Color3.fromRGB(172, 181, 222)
+    copyButton.Font = Enum.Font.GothamBold
+    copyButton.TextSize = 12
+    copyButton.ZIndex = 3
+    copyButton.Activated:Connect(function()
+        local clipboard = setclipboard or toclipboard or (syn and syn.write_clipboard)
+        if clipboard then
+            local ok = pcall(function() clipboard(tostring(msg)) end)
+            showToast(ok and "تم نسخ الرسالة" or "تعذر النسخ", ok and Color3.fromRGB(42, 86, 69) or Color3.fromRGB(95, 58, 61))
+        else
+            showToast("الـ Executor لا يدعم النسخ", Color3.fromRGB(95, 58, 61))
+        end
+    end)
 
     local label = Instance.new("TextLabel", card)
     label.Size = UDim2.new(1, -16, 0, 0)
@@ -983,6 +1099,7 @@ end
 local function updatePlayerCount()
     local count = #Players:GetPlayers()
     playerCount.Text = tostring(count) .. (count == 1 and " لاعب في السيرفر" or " لاعبين في السيرفر")
+    refreshRoster()
 end
 
 local function syncToolState()
@@ -1000,6 +1117,11 @@ searchBtn.Activated:Connect(function()
         searchBox.Text = ""
         applySearchFilter("")
     end
+end)
+
+playerCount.Activated:Connect(function()
+    rosterPanel.Visible = not rosterPanel.Visible
+    if rosterPanel.Visible then refreshRoster() end
 end)
 
 muteBtn.Activated:Connect(function()
